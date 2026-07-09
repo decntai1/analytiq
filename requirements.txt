@@ -21,7 +21,10 @@ pandas==3.0.3          # load-bearing: workbench DuckDB .df(), profiling, .xlsx 
 stripe==15.3.0         # checkout + portal + webhook signature verification. Pinned to batteries-green version.
 
 # embeddings (on-prem). Cloud uses the openai package above.
-sentence-transformers>=3.0   # local embeddings; omit if using OpenAI embeddings only
+# sentence-transformers   # local embeddings — do NOT list here: it pulls ~5G torch+CUDA.
+#                         # The Dockerfile installs it ONLY under the INSTALL_LOCAL_EMBEDDINGS=1
+#                         # build arg (set by the on-prem compose files), keeping it out of the
+#                         # cloud image (EMBEDDING_MODE=openai). Uncommenting re-bloats every image.
 
 # DB drivers as needed:
 # psycopg2-binary       # Postgres
