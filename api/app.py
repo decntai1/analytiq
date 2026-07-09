@@ -441,11 +441,35 @@ def export_deck(body: DeckExport, request: Request,
                        headers={"Content-Disposition": 'attachment; filename="analytiq-selection.pptx"'})
 
 
+def _table_details(connector) -> list[dict]:
+    """Per-table row count + column names — proves a table is actually queryable."""
+    out = []
+    for name in connector.schema_by_table().keys():
+        cols, rows = [], None
+        try:
+            cols = list(connector.run_query(f'SELECT * FROM "{name}" LIMIT 0').columns)
+        except Exception:
+            pass
+        try:
+            qr = connector.run_query(f'SELECT COUNT(*) AS n FROM "{name}"')
+            rows = qr.rows[0]["n"] if qr.rows else None
+        except Exception:
+            pass
+        out.append({"name": name, "rows": rows, "columns": cols})
+    return out
+
+
 @app.get("/tables")
 def tables(tenant: Tenant | None = Depends(auth.resolve_tenant)):
     ctx = _runtime.get(tenant)
-    return {"tables": list(ctx.connector.schema_by_table().keys()),
-            "docs_indexed": ctx.doc_index.count}
+    details = _table_details(ctx.connector)
+    docs = list(getattr(ctx.doc_index, "documents", []) or [])
+    return {"tables": [t["name"] for t in details],   # names (backward-compatible)
+            "table_details": details,                  # [{name, rows, columns}] — queryable proof
+            "documents": docs,                         # [{name, chunks}] — distinct files
+            "document_count": len(docs),               # FIX: files, not chunks
+            "docs_indexed": ctx.doc_index.count,       # chunks (backward-compatible)
+            "embedding_mode": config.settings.embedding_mode}
 
 
 @app.post("/upload")
@@ -483,15 +507,20 @@ async def upload(request: Request, file: UploadFile = File(...),
             f"'{t['view']}'" + (f" ({t['rows']} rows)" if t.get("rows") is not None else "")
             for t in tables)
         return {"ok": True, "kind": "structured", "table": view, "tables": tables,
-                "message": f"Loaded '{name}' as {len(tables)} table{'s' if len(tables) != 1 else ''}: {listing}."}
+                "message": f"'{name}' is now a queryable table{'s' if len(tables) != 1 else ''}: "
+                           f"{listing}. Ask a question to query it."}
     else:
         docs_dir = ctx.docs_dir()
         path = os.path.join(docs_dir, name)
         with open(path, "wb") as f:
             f.write(data)
         ctx.reindex()
+        note = (" Document Q&A is limited on this deployment (basic keyword search only) — "
+                "upload a CSV or Excel file to query data as a table."
+                if s.embedding_mode == "test" else
+                " To query structured data as a table, upload a CSV or Excel file.")
         return {"ok": True, "kind": "document", "source": name,
-                "message": f"Indexed document '{name}'."}
+                "message": f"'{name}' was indexed as a DOCUMENT, not a queryable table.{note}"}
 
 
 # --- admin (tenant management; ADMIN_TOKEN gated) ---------------------------

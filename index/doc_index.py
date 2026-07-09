@@ -40,24 +40,31 @@ def _chunk(text: str, size: int = 1000, overlap: int = 150) -> list[str]:
 class DocIndex:
     def __init__(self, embedder: Embedder) -> None:
         self.store = VectorStore(embedder=embedder)
-        self.count = 0
+        self.count = 0                       # total CHUNKS (retrieval units)
+        self.documents: list[dict] = []      # [{"name","chunks"}] — distinct source FILES
 
     def ingest_dir(self, docs_dir: str) -> int:
         if not os.path.isdir(docs_dir):
+            self.count = 0
+            self.documents = []
             return 0
         ids, texts, metas = [], [], []
+        per_file: dict[str, int] = {}
         for root, _, files in os.walk(docs_dir):
-            for fn in files:
+            for fn in sorted(files):
                 if not fn.lower().endswith((".txt", ".md", ".pdf")):
                     continue
                 path = os.path.join(root, fn)
-                for j, chunk in enumerate(_chunk(_read_file(path))):
+                chunks = _chunk(_read_file(path))
+                per_file[fn] = per_file.get(fn, 0) + len(chunks)   # a file counts even at 0 chunks
+                for j, chunk in enumerate(chunks):
                     ids.append(f"{fn}::{j}")
                     texts.append(chunk)
                     metas.append({"source": fn, "chunk": j, "text": chunk})
         if ids:
             self.store.add(ids, texts, metas)
         self.count = len(ids)
+        self.documents = [{"name": n, "chunks": c} for n, c in per_file.items()]
         return self.count
 
     def retrieve(self, question: str, top_k: int) -> list[dict]:

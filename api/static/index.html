@@ -278,6 +278,7 @@
       <input type="file" id="file" hidden accept=".csv,.parquet,.xlsx,.xls,.pdf,.txt,.md">
       <button class="btn full" id="upBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Upload a table or document</button>
       <div class="upnote" id="upNote"></div>
+      <div id="dataList" style="margin-top:8px"></div>
     </div>
 
     <div class="sec model">
@@ -404,8 +405,23 @@ async function boot(){
 async function loadTables(){
   try{const r=await fetch('/tables',{headers:authHeaders()});
     if(!r.ok){$('tblCount').textContent='—';$('docCount').textContent='—';if(r.status===401)$('srcMode').textContent='enter your API key →';return;}
-    const t=await r.json();$('tblCount').textContent=t.tables.length;$('docCount').textContent=t.docs_indexed;
+    const t=await r.json();
+    $('tblCount').textContent=(t.table_details?t.table_details.length:(t.tables||[]).length);
+    $('docCount').textContent=(t.document_count!=null?t.document_count:t.docs_indexed);
+    renderDataList(t);
   }catch(e){}
+}
+function renderDataList(t){
+  const el=$('dataList');if(!el)return;
+  const tbls=t.table_details||[],docs=t.documents||[],lim=t.embedding_mode==='test';
+  const item=(title,meta,color)=>`<div style="padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px"><div style="font-weight:600;font-size:12px;color:${color}">${title}</div><div style="color:#6a818a;font-size:11px;margin-top:1px">${meta}</div></div>`;
+  let h='';
+  if(tbls.length){h+='<div style="font-size:10.5px;letter-spacing:.04em;color:#6a818a;margin-top:8px;font-weight:700">TABLES · QUERYABLE</div>';
+    for(const x of tbls){const cols=(x.columns||[]).join(', ');h+=item(esc(x.name),(x.rows!=null?x.rows+' rows':'')+(cols?' · '+esc(cols):''),'var(--teal,#0c8c7e)');}}
+  if(docs.length){h+=`<div style="font-size:10.5px;letter-spacing:.04em;color:#6a818a;margin-top:8px;font-weight:700">DOCUMENTS${lim?' · <span style="color:#c2410c">Q&amp;A LIMITED</span>':''}</div>`;
+    for(const x of docs)h+=item(esc(x.name),'document — not a queryable table','#3a525c');}
+  if(!tbls.length&&!docs.length)h='<div style="font-size:11.5px;color:#6a818a;margin-top:8px">No data yet. Upload a <b>CSV or Excel</b> file to query it as a table.</div>';
+  el.innerHTML=h;
 }
 apikey&&apikey.addEventListener('change',loadTables);
 
