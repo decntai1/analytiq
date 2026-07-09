@@ -80,20 +80,26 @@ class Orchestrator:
         self.schema_index = schema_index
         self.doc_index = doc_index
 
-    def _schema_context(self, question: str) -> str:
-        """schema-RAG ON: top-K relevant tables. OFF: the entire schema (baseline)."""
-        if config.settings.scaffold_schema_rag:
+    def _schema_context(self, question: str, tables: list[str] | None = None) -> str:
+        """User table-scope (deterministic) > schema-RAG top-K > dump-everything baseline."""
+        by = self.connector.schema_by_table()
+        if tables:
+            # user forced which tables this question sees — exact, no retrieval guessing
+            chosen = [t for t in tables if t in by]
+            ctx = "\n".join(by[t] for t in chosen)
+        elif config.settings.scaffold_schema_rag:
             ctx = self.schema_index.relevant_tables(question, config.settings.schema_top_k)
         else:
             # no-retrieval baseline: dump everything (what breaks at 100 tables)
-            ctx = "\n".join(self.connector.schema_by_table().values())
+            ctx = "\n".join(by.values())
         # record which tables ended up in context (for the table-recall metric)
         self._last_tables = [ln.split()[1] for ln in ctx.splitlines() if ln.startswith("TABLE")]
         return ctx
 
     def ask(self, question: str, model_name: str | None = None,
             history: list[dict] | None = None,
-            spec_override: Any = None) -> dict[str, Any]:
+            spec_override: Any = None,
+            tables: list[str] | None = None) -> dict[str, Any]:
         # reset per question: unstructured-arm runs must report NO retrieved tables,
         # not the previous question's (would corrupt the eval's table-recall metric
         # when one Orchestrator instance is reused, as eval/score.py does).
@@ -108,7 +114,7 @@ class Orchestrator:
 
         schema_ctx = ""
         if plan["arm"] in ("structured", "both"):
-            schema_ctx = self._schema_context(question)
+            schema_ctx = self._schema_context(question, tables)
 
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM.format(

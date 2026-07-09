@@ -414,14 +414,31 @@ async function loadTables(){
 function renderDataList(t){
   const el=$('dataList');if(!el)return;
   const tbls=t.table_details||[],docs=t.documents||[],lim=t.embedding_mode==='test';
-  const item=(title,meta,color)=>`<div style="padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px"><div style="font-weight:600;font-size:12px;color:${color}">${title}</div><div style="color:#6a818a;font-size:11px;margin-top:1px">${meta}</div></div>`;
+  const box=(inner)=>`<div style="padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px">${inner}</div>`;
+  const hdr=(txt)=>`<div style="font-size:10.5px;letter-spacing:.04em;color:#6a818a;margin-top:8px;font-weight:700">${txt}</div>`;
   let h='';
-  if(tbls.length){h+='<div style="font-size:10.5px;letter-spacing:.04em;color:#6a818a;margin-top:8px;font-weight:700">TABLES · QUERYABLE</div>';
-    for(const x of tbls){const cols=(x.columns||[]).join(', ');h+=item(esc(x.name),(x.rows!=null?x.rows+' rows':'')+(cols?' · '+esc(cols):''),'var(--teal,#0c8c7e)');}}
-  if(docs.length){h+=`<div style="font-size:10.5px;letter-spacing:.04em;color:#6a818a;margin-top:8px;font-weight:700">DOCUMENTS${lim?' · <span style="color:#c2410c">Q&amp;A LIMITED</span>':''}</div>`;
-    for(const x of docs)h+=item(esc(x.name),'document — not a queryable table','#3a525c');}
+  if(tbls.length){
+    h+=hdr('TABLES · QUERYABLE <span style="font-weight:400">— check = in scope</span>');
+    for(const x of tbls){const cols=(x.columns||[]).join(', ');
+      h+=`<label style="display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px;cursor:pointer">`+
+         `<input type="checkbox" class="tblScope" value="${esc(x.name)}" checked style="margin-top:3px;flex:none">`+
+         `<span style="min-width:0"><span style="font-weight:600;font-size:12px;color:var(--teal,#0c8c7e)">${esc(x.name)}</span>`+
+         `<span style="display:block;color:#6a818a;font-size:11px;overflow-wrap:anywhere">${(x.rows!=null?x.rows+' rows':'')}${cols?' · '+esc(cols):''}</span></span></label>`;
+    }
+  }
+  if(docs.length){
+    h+=hdr(`DOCUMENTS${lim?' · <span style="color:#c2410c">Q&amp;A LIMITED</span>':''}`);
+    for(const x of docs)h+=box(`<div style="font-weight:600;font-size:12px;color:#3a525c">${esc(x.name)}</div><div style="color:#6a818a;font-size:11px">document — not a queryable table</div>`);
+  }
   if(!tbls.length&&!docs.length)h='<div style="font-size:11.5px;color:#6a818a;margin-top:8px">No data yet. Upload a <b>CSV or Excel</b> file to query it as a table.</div>';
   el.innerHTML=h;
+}
+// which tables the next question is scoped to; null = all (default, no scoping)
+function scopedTables(){
+  const boxes=[...document.querySelectorAll('.tblScope')];
+  if(!boxes.length)return null;
+  const checked=boxes.filter(b=>b.checked).map(b=>b.value);
+  return checked.length===boxes.length?null:checked;
 }
 apikey&&apikey.addEventListener('change',loadTables);
 
@@ -498,6 +515,7 @@ async function ask(){
   try{
     if(ME&&!CURRENT_CONV){try{CURRENT_CONV=(await(await fetch('/chats',{method:'POST'})).json()).conv_id;loadChats();}catch(e){}}
     const payload={question,model:modelSel.value};if(ME&&CURRENT_CONV)payload.conversation_id=CURRENT_CONV;
+    const _st=scopedTables();if(_st)payload.tables=_st;
     const r=await fetch('/ask',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify(payload)});
     if(r.status===401)renderErr(ab,'This deployment needs an API key. Paste your key in the sidebar and try again.');
     else if(r.status===402)renderErr(ab,'You\'ve used all your questions for this month on the free plan. Upgrade to keep going.');

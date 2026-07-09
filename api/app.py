@@ -64,6 +64,7 @@ class AskRequest(BaseModel):
     question: str
     model: str | None = None
     conversation_id: str | None = None
+    tables: list[str] | None = None      # user table-scope: restrict the query to these tables
 
 
 class CreateTenant(BaseModel):
@@ -269,7 +270,8 @@ def ask(req: AskRequest, request: Request, tenant: Tenant | None = Depends(auth.
         model = tenant.default_model
 
     result = ctx.orchestrator().ask(req.question, model_name=model,
-                                    history=history, spec_override=spec_override)
+                                    history=history, spec_override=spec_override,
+                                    tables=req.tables)
 
     if user and conv_id:
         auth.accounts().append_message(conv_id, "user", req.question)
