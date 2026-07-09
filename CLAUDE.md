@@ -199,12 +199,24 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
   `full` recall 0.50 (hash noise — missed even `sales`) -> 0.70, and now the misses are
   MEANINGFUL: q1/q3 fetch `sales` where hash missed it; q5 "gross MARGIN" loses `sales`
   to confusable traps (revenue_targets/manufacturing), q4 loses `produced_items` — real
-  retrieval difficulty, not noise. STILL TODO for the clean run: full grid on the 4-model
-  ladder under EMBEDDING_MODE=model2vec, AFTER Ollama Pro (~160-400 calls; free key walls). Run:
+  retrieval difficulty, not noise. FULL GRID RAN 2026-07-09 (free key, quota fine — Ollama
+  Pro NOT needed; ~80 runs) over the 4-model ladder × 4 levels under model2vec. Raw JSON:
+  eval/results/grid_stageA.json (ministral-8b, gpt-oss-20b) + grid_stageB.json (ollama-cloud
+  =120B, qwen3-coder=480B). HEADLINE RESULTS (the thesis, measured):
+  (1) RETRIEVAL IS MODEL-INDEPENDENT — all 4 models (8B..480B) retrieved BYTE-IDENTICAL
+  tables at every level & question (the crux held across a ~60x capability gap; router-ON
+  levels did NOT diverge). table_recall is purely a function of scaffold level: 1.0 none
+  (dump), 0.70 rag/rag+val+rep/full (semantic top-6) — identical across ALL models. The 0.70
+  ceiling is an EMBEDDER property (potion-base-8M), not the LLM — lift it with potion-32M.
+  (2) SCAFFOLDING SUBSTITUTES FOR CAPABILITY (the payoff) — the weak model is where it bites:
+  ministral-8b errors 3.4/q at `none` (drowns in the 27-table dump) -> 0.6 at `rag`; its
+  chart_ok 0.60 -> 0.80. The 20B/120B/480B sit at ~0 errors everywhere — capable enough to
+  handle the dump unaided, so scaffolding has little to rescue. Clean monotonic gradient.
+  Caveats: latency is noisy on shared Ollama Cloud (20B ran SLOWER than 120B that day — not a
+  clean signal); docs_ok reliable only once router is ON (full=1.0 all models). Re-run:
   docker compose exec -T app python - < eval/build_demo_db.py  # (re)build DB+doc
   docker compose exec -e EMBEDDING_MODE=model2vec -e DB_URL=sqlite:////app/ecommerce_large.db \
     -e DOCS_DIR=/app/eval/demo_docs -T app \
     python -m eval.score --models <ladder> --levels none rag rag+val+rep full
-  Flag once per session until the full grid runs.
 - Live-keys Stripe checkout has never run; first real checkout is a launch-day step.
 - Keep this file updated in the same commit as any change to the facts above.
