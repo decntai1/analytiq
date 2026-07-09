@@ -181,10 +181,21 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
 ## Standing items
 - Ollama Cloud is on a FREE/personal key — move to Pro before real traffic (quota
   walls ~5M tok/wk, 120B burns it fast, no SLA).
-- The REAL EVAL RUN (models × scaffold levels over the gold set) has NEVER run —
-  roadmap item 1, the thesis result. The 8B→480B model ladder is now assembled +
-  tool-verified: it IS the eval's independent variable, waiting. Nothing new needs
-  building to run it. Flag once per session if still true.
+- The REAL EVAL RUN (models × scaffold levels over the gold set) — roadmap item 1,
+  the thesis result. Recon found the headline metric (table_recall) was DEGENERATE:
+  with only the 3 gold tables and SCHEMA_TOP_K=6, top-6-of-3 = all 3 always ->
+  recall saturates at 1.0 and can't discriminate. FIXED by eval/build_demo_db.py:
+  a demo DB (ecommerce_large.db, 0-byte placeholder before) with the 3 gold tables
+  PLUS ~24 distractors (some confusable: refunds~returns, manufacturing~produced_items)
+  so top-K must choose. Subset smoke run VALIDATED the harness end-to-end (gpt-oss-20b,
+  err=0.0; recall none=1.0 vs full=0.5 — it discriminates now). STILL TODO for the
+  clean run: (1) model2vec embeddings (test/hash retrieval gives bad recall — the
+  full-grid numbers aren't defensible on hash), (2) full grid on the 4-model ladder
+  AFTER Ollama Pro (~160-400 calls; free key will wall). Run:
+  docker compose exec -T app python - < eval/build_demo_db.py  # (re)build DB+doc
+  docker compose exec -e DB_URL=sqlite:////app/ecommerce_large.db -e DOCS_DIR=/app/eval/demo_docs \
+    -T app python -m eval.score --models <ladder> --levels none rag rag+val+rep full
+  Flag once per session until the full grid runs.
 - model2vec port (torch-free semantic embeddings) = the fix for the weak test-mode
   document arm — high value, "next session". See [[cloud-image-torch-free]].
 - Live-keys Stripe checkout has never run; first real checkout is a launch-day step.
