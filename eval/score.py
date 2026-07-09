@@ -135,9 +135,14 @@ def run(models: list[str], levels: list[str], gold_path: str, out_path: str) -> 
                     res = orch.ask(item["question"], model_name=model)
                     sc = score_item(res, item)
                     sc["latency"] = round(time.time() - t0, 2)
+                    # record the actual retrieved tables per item so the per-model
+                    # retrieval pattern (the crux: is retrieval model-independent?)
+                    # is inspectable, not just the aggregate recall.
+                    sc["tables_retrieved"] = res.get("tables_retrieved", [])
                 except Exception as e:
                     sc = {"table_recall": 0, "chart_ok": False, "docs_ok": False,
-                          "error_count": 1, "latency": round(time.time() - t0, 2), "exc": str(e)}
+                          "error_count": 1, "latency": round(time.time() - t0, 2),
+                          "tables_retrieved": [], "exc": str(e)}
                 for k in agg:
                     agg[k].append(sc.get(k, 0))
                 rows.append({"model": model, "level": level, "qid": item["id"], **sc})
