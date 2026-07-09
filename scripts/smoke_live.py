@@ -32,6 +32,7 @@ import argparse
 import http.cookiejar
 import io
 import json
+import os
 import socket
 import ssl
 import sys
@@ -135,6 +136,35 @@ def as_json(raw: bytes):
         return json.loads(raw.decode("utf-8"))
     except Exception:
         return None
+
+
+# paid models (in the picker for paid plans) that a Free smoke account can't /ask;
+# probe their tool-calling liveness directly if OLLAMA_API_KEY is available.
+PAID_MODELS = [("gpt-oss-20b", "gpt-oss:20b"),
+               ("gpt-oss-120b", "gpt-oss:120b"),
+               ("qwen3-coder", "qwen3-coder:480b")]
+
+
+def probe_tool_call(key: str, model_id: str, timeout: int = 90):
+    """Live liveness check: does this Ollama Cloud model still emit a run_sql tool-call?"""
+    import urllib.request
+    tools = [{"type": "function", "function": {"name": "run_sql",
+              "description": "Run a read-only SQL query",
+              "parameters": {"type": "object", "properties": {"query": {"type": "string"}},
+                             "required": ["query"]}}}]
+    body = json.dumps({"model": model_id, "tools": tools, "tool_choice": "auto", "max_tokens": 300,
+                       "messages": [{"role": "user",
+                                     "content": "Total revenue by region in table sales? Call run_sql."}]}).encode()
+    req = urllib.request.Request("https://ollama.com/v1/chat/completions", data=body,
+                                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+    try:
+        d = json.load(urllib.request.urlopen(req, timeout=timeout))
+        tc = d.get("choices", [{}])[0].get("message", {}).get("tool_calls") or []
+        return (bool(tc), "run_sql tool-call emitted" if tc else "no tool-call (text only)")
+    except urllib.error.HTTPError as e:
+        return (False, f"HTTP {e.code}: {e.read().decode()[:60]}")
+    except Exception as e:
+        return (False, f"{type(e).__name__}: {str(e)[:60]}")
 
 
 # --------------------------------------------------------------------------- #
@@ -296,6 +326,21 @@ def run(base: str) -> int:
         r.warn("/ask chart spec",
                 "model returned no chart this run (answer+SQL ok) — chart emission "
                 "is model-discretionary; not a deploy failure")
+
+    # 5b. plan-gating enforcement + paid-model liveness -----------------------
+    print("5b. Model gating (403) + paid-model liveness")
+    # Free account POSTing a paid model must be rejected server-side (not just hidden).
+    st, _, raw = c.post_json("/ask", {"question": "ping", "model": "qwen3-coder"})
+    r.check("Free account 403'd from a paid model (server-side enforcement)",
+            st == 403, f"status={st}")
+    key = os.environ.get("OLLAMA_API_KEY")
+    if not key:
+        r.skip("Paid-model tool-probe", "set OLLAMA_API_KEY to probe; paid /ask E2E lives in "
+                                        "scripts/verify_paid_models.py (build-time acceptance)")
+    else:
+        for name, mid in PAID_MODELS:
+            ok, detail = probe_tool_call(key, mid)
+            r.check(f"paid model {name} ({mid}) tool-capable", ok, detail)
 
     # 6. 2-sheet xlsx → both sheets register ----------------------------------
     print("6. Upload 2-sheet .xlsx → both sheets register")
