@@ -1,0 +1,43 @@
+# =====================================================================
+# Analytiq — dedicated GPU box (Tier 2 hourly sessions / Tier 3 company)
+# One customer per box. Runs ONLY the model server; the Analytiq app
+# stays on the SaaS host and points at this box via the tenant's
+# llm_base_url (e.g. http://<box-ip>:8000/v1).
+#
+# STATUS: written against vLLM's documented flags; NOT live-tested from
+# this repo (no GPU in the build environment). Validate on first boot:
+#   curl http://localhost:8000/v1/models
+#
+# Sizing (from the KV-cache math in the ops notes):
+#   32k tier  -> 24GB GPU (RTX 4090/L4),  MAX_MODEL_LEN=32768
+#   128k tier -> 80GB GPU (A100/H100),    MAX_MODEL_LEN=131072
+# =====================================================================
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    restart: unless-stopped
+    ipc: host
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      # persistent model cache: survives container restarts; on RunPod,
+      # mount the network volume here so weights download ONCE per region.
+      - ${MODEL_CACHE:-/workspace/models}:/root/.cache/huggingface
+    ports:
+      - "8000:8000"          # firewall this to the SaaS host's IP only
+    command: >
+      --model ${MODEL_ID}
+      --served-model-name ${SERVED_NAME:-default}
+      --max-model-len ${MAX_MODEL_LEN:-32768}
+      --kv-cache-dtype fp8
+      --enable-prefix-caching
+      --gpu-memory-utilization ${GPU_MEM_UTIL:-0.90}
+      --max-num-seqs ${MAX_NUM_SEQS:-32}
+      ${VLLM_API_KEY:+--api-key ${VLLM_API_KEY}}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

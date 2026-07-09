@@ -1,0 +1,40 @@
+# Production SaaS: Caddy (TLS) -> app, multi-tenant. LLM via cloud API.
+#   cp .env.prod.example .env  &&  edit (DOMAIN, ADMIN_TOKEN, keys)  &&
+#   docker compose -f docker-compose.prod.yml up -d --build
+services:
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: analytiq:latest
+    env_file: .env
+    environment:
+      DEPLOY_MODE: cloud
+      MULTI_TENANT: "1"
+    expose:
+      - "8000"                  # internal only; not published to host
+    volumes:
+      - analytiq_tenants:/app/tenants
+      - analytiq_data:/data
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  analytiq_tenants:
+  analytiq_data:

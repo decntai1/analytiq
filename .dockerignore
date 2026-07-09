@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.*.example
+*.db
+*.db-*
+uploads/
+documents/
+data/
+eval_results.json
+.git/
+.venv/
+venv/

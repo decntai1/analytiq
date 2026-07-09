@@ -1,0 +1,57 @@
+# Production on-prem: Caddy (TLS) -> app -> local Ollama. Single-tenant, fully local.
+#   cp .env.prod-onprem.example .env  &&  edit (DOMAIN or use internal host)  &&
+#   docker compose -f docker-compose.prod-onprem.yml up -d --build
+#   docker compose -f docker-compose.prod-onprem.yml exec ollama ollama pull qwen2.5:14b-instruct
+services:
+  caddy:
+    image: caddy:2
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_models:/root/.ollama
+    # no ports: -> Ollama stays internal to the compose network
+    restart: unless-stopped
+    # GPU: uncomment for NVIDIA hardware (needs NVIDIA Container Toolkit)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_LOCAL_EMBEDDINGS: "1"
+    image: analytiq:onprem
+    env_file: .env
+    environment:
+      DEPLOY_MODE: onprem
+      MULTI_TENANT: "0"
+      EMBEDDING_MODE: local
+      LOCAL_LLM_BASE_URL: http://ollama:11434/v1
+    expose: ["8000"]
+    depends_on: [ollama]
+    volumes:
+      - analytiq_data:/data
+      # mount customer data files read-only:
+      # - /path/to/customer/data:/data/files:ro
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  ollama_models:
+  analytiq_data:

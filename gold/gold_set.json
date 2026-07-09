@@ -1,0 +1,44 @@
+{
+  "_about": "Gold set for the thesis eval. Each item has a question and verified expectations. The scorer runs the pipeline and grades against these. 'expected_tables' drives the table-recall metric (the 'did it miss a table?' worry). 'expected_value' (optional) is checked against the executed SQL's result for numeric correctness. 'expect_chart' checks a valid chart was produced. Build this against YOUR demo DB; the entries below assume a sales/spendings/produced_items/returns schema.",
+  "items": [
+    {
+      "id": "q1_monthly_revenue",
+      "question": "Show total revenue per month for 2024 as a line chart.",
+      "expected_tables": ["sales"],
+      "expect_chart": true,
+      "expected_chart_type": "line",
+      "notes": "Single-table aggregate + viz. Baseline competence."
+    },
+    {
+      "id": "q2_net_revenue_trap",
+      "question": "What was net revenue in Q4?",
+      "expected_tables": ["sales", "returns"],
+      "expect_chart": false,
+      "notes": "TABLE-RECALL TRAP: net revenue needs the returns table. Without the glossary or good retrieval, a model answers gross revenue from sales alone and silently misses 'returns'. This item is the core test of the scaling/recall claim."
+    },
+    {
+      "id": "q3_top_products",
+      "question": "Top 10 products by revenue.",
+      "expected_tables": ["sales"],
+      "expect_chart": true,
+      "expected_chart_type": "bar",
+      "notes": "Ranking + bar chart."
+    },
+    {
+      "id": "q4_why_q3_weak",
+      "question": "Why were Q3 sales weak?",
+      "expected_tables": ["sales", "produced_items"],
+      "expect_chart": false,
+      "expect_documents": true,
+      "notes": "Routes to BOTH arms: numbers (sales/production dip) + documents (the cause). Tests the router + doc-RAG."
+    },
+    {
+      "id": "q5_margin",
+      "question": "What was our gross margin by quarter?",
+      "expected_tables": ["sales"],
+      "expect_chart": true,
+      "expected_chart_type": "line",
+      "notes": "Defined metric (gross_margin). With glossary the formula is given; without it the model must infer revenue-vs-cost itself."
+    }
+  ]
+}

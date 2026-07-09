@@ -1,0 +1,15 @@
+# Analytiq DEMO deps — lean, NO PyTorch.
+# Embeddings run in offline 'test' mode (EMBEDDING_MODE=test), so sentence-transformers
+# (which drags in torch, ~2GB) is intentionally NOT here. The LLM is Ollama Cloud over
+# HTTPS via the openai client — no local Ollama, no local model.
+openai>=1.40            # OpenAI-compatible client -> Ollama Cloud (https://ollama.com/v1)
+sqlalchemy>=2.0         # SQL connector (demo DB is SQLite; no driver needed)
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.0
+python-multipart>=0.0.9 # the upload-docs button
+duckdb>=1.0             # CSV/Parquet uploads
+pypdf>=4.0              # PDF ingestion for uploaded documents
+# Deliberately omitted on this small shared box (add later if wanted):
+#   sentence-transformers  -> only for EMBEDDING_MODE=local (pulls torch)
+#   python-pptx, vl-convert-python -> only for the "Build deck" button

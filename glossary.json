@@ -1,0 +1,6 @@
+{
+  "net_revenue": "SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0)",
+  "gross_margin": "(SUM(sales.revenue) - SUM(sales.cost)) / SUM(sales.revenue)",
+  "active_customers": "COUNT(DISTINCT orders.user_id) over the period in question",
+  "production_volume": "SUM(produced_items.units_produced)"
+}

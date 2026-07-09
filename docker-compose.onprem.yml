@@ -1,0 +1,50 @@
+# On-prem deployment — app + local Ollama. Fully self-contained; no cloud, no data egress.
+# Use for: a customer who installs on their own hardware.
+#   cp .env.onprem.example .env
+#   docker compose -f docker-compose.onprem.yml up -d --build
+#   docker compose -f docker-compose.onprem.yml exec ollama ollama pull qwen2.5:14b-instruct
+#
+# GPU: uncomment the deploy.resources block under `ollama` if the host has an NVIDIA GPU
+# and the NVIDIA Container Toolkit installed. CPU-only works for small models / testing.
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_models:/root/.ollama    # pulled models persist
+    ports:
+      - "11434:11434"                  # remove to keep Ollama fully internal
+    restart: unless-stopped
+    # --- GPU passthrough (uncomment for NVIDIA hardware) ---
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_LOCAL_EMBEDDINGS: "1"   # bake in local embeddings (no cloud for vectors either)
+    image: analytiq:onprem
+    env_file: .env
+    environment:
+      DEPLOY_MODE: onprem
+      EMBEDDING_MODE: local
+      LOCAL_LLM_BASE_URL: http://ollama:11434/v1   # talk to the Ollama container
+    depends_on:
+      - ollama
+    ports:
+      - "8000:8000"
+    volumes:
+      - analytiq_data:/data
+      # mount the customer's data files read-only for the 'files' data source:
+      # - /path/to/customer/data:/data/files:ro
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
+  analytiq_data:

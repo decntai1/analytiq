@@ -1,0 +1,16 @@
+# Automatic HTTPS reverse proxy for Analytiq.
+# Set DOMAIN in .env (e.g. analytiq.example.com). Caddy obtains + renews Let's Encrypt
+# certs automatically. For local/testing use ":8443" or "localhost".
+{$DOMAIN} {
+    encode gzip
+    # security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+    # app
+    reverse_proxy app:8000
+}

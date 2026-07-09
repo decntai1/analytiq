@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Analytiq · Dashboard</title>
+<script src="/static/vendor/vega.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/vega@5'"></script>
+<script src="/static/vendor/vega-lite.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/vega-lite@5'"></script>
+<script src="/static/vendor/vega-embed.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/vega-embed@6'"></script>
+<style>
+:root{--teal:#0c8c7e;--ink:#0c1a20;--muted:#5b6b70;--line:#e6eceb;--panel:#fff;--bg:#f4f8f7;--err:#b04a4a;--mono:ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header .brand{font-weight:720}header .tag{font-size:11px;background:#e8f5f1;color:#1c6b58;border-radius:999px;padding:2px 9px;font-weight:640}
+header select{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px}
+header a{color:var(--teal);text-decoration:none;font-size:13px}
+.btn{border:1px solid var(--teal);background:var(--teal);color:#fff;border-radius:8px;padding:6px 12px;font-weight:620;cursor:pointer;font-size:12.5px}
+.btn.ghost{background:#fff;color:var(--teal)}.btn:disabled{opacity:.5}
+.grid{max-width:1240px;margin:16px auto;padding:0 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.tile .th{display:flex;align-items:center;gap:8px}.tile .tt{font-weight:640;font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .ic{border:none;background:none;cursor:pointer;color:var(--muted);font-size:13px;padding:2px}.tile .ic:hover{color:var(--teal)}
+.tile .body{min-height:180px}.tile .q{font-size:11.5px;color:var(--muted)}
+.tile .meta{font-family:var(--mono);font-size:10.5px;color:#8a9794}
+.tile .errline{color:var(--err);font-size:12px}
+.tile table{border-collapse:collapse;font-size:11.5px;width:100%}.tile td,.tile th{border-bottom:1px solid var(--line);padding:3px 5px;text-align:left}
+.tile textarea{width:100%;font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:8px;padding:6px;min-height:70px}
+.empty{max-width:640px;margin:60px auto;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Analytiq</span><span class="tag">Dashboard</span>
+  <select id="boardSel"></select>
+  <button class="btn ghost" id="newBoard">+ Board</button>
+  <button class="btn" id="refreshAll">↻ Refresh all</button>
+  <select id="auto"><option value="0">auto-refresh: off</option><option value="60">every 1 min</option><option value="300">every 5 min</option><option value="900">every 15 min</option></select>
+  <a id="exp" class="btn ghost" href="#" style="text-decoration:none">Export PPTX</a>
+  <span style="flex:1"></span><a href="/app">← chat</a><a href="/workbench">workbench</a>
+</header>
+<div class="grid" id="grid"></div>
+<div class="empty" id="empty" style="display:none"><h3>No tiles yet</h3>
+Ask a question in the <a href="/app">chat</a> and hit 📌 <b>Pin</b> on any answer — it lands here,
+and refreshing re-runs the saved SQL against live data. No re-prompting, ever.</div>
+<script>
+const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function hdr(h){h=h||{};const k=localStorage.getItem('aq_apikey');if(k)h['X-API-Key']=k;return h;}
+let BOARD=null,TIMER=null;
+async function loadBoards(){const j=await(await fetch('/dashboard/api/boards',{headers:hdr()})).json();
+  const bs=j.boards||[];BOARD=BOARD&&bs.some(b=>b.id===BOARD)?BOARD:(bs[0]&&bs[0].id);
+  $('boardSel').innerHTML=bs.map(b=>`<option value="${esc(b.id)}"${b.id===BOARD?' selected':''}>${esc(b.name)} (${b.tiles})</option>`).join('');
+  $('exp').href=BOARD?`/dashboard/api/boards/${BOARD}/export.pptx`:'#';loadTiles();}
+$('boardSel').addEventListener('change',()=>{BOARD=$('boardSel').value;$('exp').href=`/dashboard/api/boards/${BOARD}/export.pptx`;loadTiles();});
+$('newBoard').addEventListener('click',async()=>{const n=prompt('Board name:','Ops monitor');if(!n)return;
+  const b=await(await fetch('/dashboard/api/boards',{method:'POST',headers:hdr({'content-type':'application/json'}),body:JSON.stringify({name:n})})).json();
+  BOARD=b.id;loadBoards();});
+async function loadTiles(){if(!BOARD)return;const j=await(await fetch(`/dashboard/api/boards/${BOARD}/tiles`,{headers:hdr()})).json();
+  const ts=j.tiles||[];$('empty').style.display=ts.length?'none':'';
+  $('grid').innerHTML=ts.map(t=>`<div class="tile" id="t_${esc(t.id)}"><div class="th"><span class="tt" title="${esc(t.title)}">${esc(t.title)}</span>
+    <button class="ic" data-a="refresh" data-t="${esc(t.id)}" title="Re-run the saved SQL">↻</button>
+    <button class="ic" data-a="edit" data-t="${esc(t.id)}" title="Edit title / SQL">✎</button>
+    <button class="ic" data-a="del" data-t="${esc(t.id)}" title="Remove tile">✕</button></div>
+    <div class="q">${esc(t.question)}</div><div class="body" id="b_${esc(t.id)}"><span class="meta">loading…</span></div>
+    <div class="meta" id="m_${esc(t.id)}"></div></div>`).join('');
+  ts.forEach(t=>refreshTile(t.id));}
+async function refreshTile(id){const b=$('b_'+id),m=$('m_'+id);if(!b)return;
+  try{const r=await fetch(`/dashboard/api/tiles/${id}/refresh`,{method:'POST',headers:hdr()});const j=await r.json();
+    if(j.error){b.innerHTML=`<div class="errline">${esc(j.error)}</div>`;m.textContent='';return;}
+    if(j.spec){b.innerHTML='';vegaEmbed(b,j.spec,{actions:false,renderer:'svg'}).catch(()=>{b.innerHTML='<div class="errline">chart failed to render</div>';});}
+    else{const cols=j.columns||[],rows=j.rows||[];
+      b.innerHTML='<table><tr>'+cols.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr>'+
+        rows.slice(0,8).map(r=>'<tr>'+cols.map(c=>`<td>${esc(r[c])}</td>`).join('')+'</tr>').join('')+'</table>';}
+    m.textContent=`${j.row_count} rows${j.truncated?' (truncated)':''} · refreshed ${new Date(j.refreshed_at*1000).toLocaleTimeString()}`;
+  }catch(e){b.innerHTML='<div class="errline">refresh failed</div>';}}
+$('grid').addEventListener('click',async e=>{const btn=e.target.closest('.ic');if(!btn)return;
+  const id=btn.getAttribute('data-t'),a=btn.getAttribute('data-a');
+  if(a==='refresh')refreshTile(id);
+  else if(a==='del'){if(!confirm('Remove this tile? (The underlying data is untouched.)'))return;
+    await fetch(`/dashboard/api/tiles/${id}`,{method:'DELETE',headers:hdr()});loadBoards();}
+  else if(a==='edit'){const body=$('b_'+id);
+    const t=await(await fetch(`/dashboard/api/tiles/${id}/refresh`,{method:'POST',headers:hdr()})).json();
+    const cur=t.tile||{};
+    body.innerHTML=`<input type="text" id="et_${id}" value="${esc(cur.title)}" style="width:100%;margin-bottom:6px;border:1px solid var(--line);border-radius:8px;padding:6px">
+      <textarea id="es_${id}">${esc(cur.sql)}</textarea>
+      <div style="margin-top:6px"><button class="btn" data-save="${esc(id)}">Save & run</button></div>`;}
+});
+$('grid').addEventListener('click',async e=>{const s=e.target.closest('[data-save]');if(!s)return;
+  const id=s.getAttribute('data-save');
+  const r=await fetch(`/dashboard/api/tiles/${id}`,{method:'PATCH',headers:hdr({'content-type':'application/json'}),
+    body:JSON.stringify({title:$('et_'+id).value,sql:$('es_'+id).value})});
+  if(r.ok)loadTiles();else alert('save failed');});
+$('refreshAll').addEventListener('click',loadTiles);
+$('auto').addEventListener('change',()=>{if(TIMER)clearInterval(TIMER);const s=+$('auto').value;
+  if(s>0)TIMER=setInterval(loadTiles,s*1000);});
+loadBoards();
+</script>
+</body>
+</html>

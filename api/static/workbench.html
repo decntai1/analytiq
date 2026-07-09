@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Analytiq · Workbench</title>
+<style>
+:root{--teal:#0c8c7e;--ink:#0c1a20;--muted:#5b6b70;--line:#e6eceb;--panel:#fff;--bg:#f4f8f7;--err:#b04a4a;--mono:ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+header .brand{font-weight:720}header .tag{font-size:11px;background:#eef1fb;color:#3a4a8c;border-radius:999px;padding:2px 9px;font-weight:640}
+header a{margin-left:auto;color:var(--teal);text-decoration:none;font-size:13px}
+main{max-width:1040px;margin:18px auto;padding:0 16px;display:grid;grid-template-columns:280px 1fr;gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.btn{border:1px solid var(--teal);background:var(--teal);color:#fff;border-radius:8px;padding:7px 14px;font-weight:620;cursor:pointer;font-size:13px}
+.btn.ghost{background:#fff;color:var(--teal)}.btn:disabled{opacity:.5;cursor:default}.btn.warn{border-color:var(--err);background:#fff;color:var(--err)}
+select,input[type=text]{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:13px}
+.slist button{display:block;width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 9px;margin-bottom:6px;cursor:pointer;font-size:12.5px}
+.slist button.active{border-color:var(--teal);background:#f2fbf9}
+.prof{width:100%;border-collapse:collapse;font-size:12px}.prof th,.prof td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left}
+.prof .warn{color:var(--err);font-weight:600}
+.plan .op{border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:7px;display:flex;gap:9px;align-items:flex-start}
+.plan .op input{margin-top:3px;accent-color:var(--teal)}
+.plan .nm{font-family:var(--mono);font-weight:640;font-size:12.5px}.plan .rs{color:var(--muted);font-size:12px;margin-top:2px}
+.plan .aff{font-family:var(--mono);font-size:11.5px;color:var(--teal)}
+.recipe{font-family:var(--mono);font-size:11.5px;background:#0c1a20;color:#bfe7dd;border-radius:9px;padding:10px;white-space:pre-wrap;max-height:200px;overflow:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.note{font-size:12px;color:var(--muted);margin-top:6px}
+.err{color:var(--err);font-size:12.5px;margin-top:6px}
+</style>
+</head>
+<body>
+<header><span class="brand">Analytiq</span><span class="tag">Workbench</span>
+<span style="font-size:12.5px;color:var(--muted)">AI-assisted cleansing — on copies, never sources</span>
+<a href="/app">← back to chat</a></header>
+<main>
+  <div>
+    <div class="card"><h3>New session</h3>
+      <select id="pickView"></select>
+      <div class="row"><button class="btn" id="newBtn">Copy to workbench</button></div>
+      <div class="note">Copies the table into an isolated sandbox. The original is never modified.</div>
+      <div class="err" id="newErr"></div></div>
+    <div class="card" style="margin-top:14px"><h3>Sessions</h3><div class="slist" id="sList"></div></div>
+  </div>
+  <div id="ws" style="display:none">
+    <div class="card"><h3>Session <span id="wsSid" style="font-family:var(--mono)"></span> · <span id="wsSrc"></span> · <span id="wsRows"></span> rows</h3>
+      <table class="prof" id="profT"></table>
+      <div class="note" id="dupNote"></div></div>
+    <div class="card" style="margin-top:14px"><h3>Ask the AI</h3>
+      <input type="text" id="inst" placeholder="e.g. clean this file: fix whitespace, empty markers, wrong types…">
+      <div class="row"><select id="mdl" style="width:auto;min-width:160px"></select>
+        <button class="btn" id="propBtn">Scan &amp; propose</button></div>
+      <div class="err" id="propErr"></div>
+      <div class="plan" id="plan" style="margin-top:10px"></div>
+      <div class="row" id="actRow" style="display:none">
+        <button class="btn ghost" id="prevBtn">Preview selected</button>
+        <button class="btn" id="applyBtn">Apply selected</button></div></div>
+    <div class="card" style="margin-top:14px"><h3>Recipe (audit trail)</h3>
+      <div class="recipe" id="recipe">— nothing applied yet —</div>
+      <div class="row"><button class="btn ghost" id="saveRec">Save as recipe</button>
+        <select id="recSel" style="width:auto;min-width:180px"><option value="">apply a saved recipe…</option></select>
+        <button class="btn ghost" id="applyRec">Apply recipe</button></div>
+      <div class="note" id="recNote"></div>
+      <div class="row"><a id="dlBtn" class="btn ghost" href="#" download>Download cleaned CSV</a>
+        <button class="btn ghost" id="resetBtn">Reset to original</button>
+        <button class="btn warn" id="delBtn">Delete session</button></div></div>
+  </div>
+</main>
+<script>
+const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function hdr(h){h=h||{};const k=localStorage.getItem('aq_apikey');if(k)h['X-API-Key']=k;return h;}
+let SID=null,PLAN=[];
+async function loadViews(){try{const j=await(await fetch('/sources',{headers:hdr()})).json();
+  const t=(j.sources||[]).filter(s=>s.type==='table');
+  $('pickView').innerHTML=t.map(s=>`<option value="${esc(s.view)}">${esc(s.name)}${s.count!=null?' ('+s.count+' rows)':''}</option>`).join('');}catch(e){}}
+async function loadModels(){try{const j=await(await fetch('/models',{headers:hdr()})).json();
+  $('mdl').innerHTML=(j.models||[]).map(m=>`<option${m.name===j.default?' selected':''}>${esc(m.name)}</option>`).join('');}catch(e){}}
+async function loadSessions(){try{const j=await(await fetch('/workbench/api/sessions',{headers:hdr()})).json();
+  $('sList').innerHTML=(j.sessions||[]).map(s=>`<button class="${s.sid===SID?'active':''}" data-sid="${esc(s.sid)}">${esc(s.source_view)}<br><span style="color:var(--muted);font-size:11px">${esc(s.sid)} · ${s.ops_applied} ops applied</span></button>`).join('')||'<div class="note">No sessions yet.</div>';}catch(e){}}
+$('sList').addEventListener('click',e=>{const b=e.target.closest('button[data-sid]');if(b)openSession(b.getAttribute('data-sid'));});
+$('newBtn').addEventListener('click',async()=>{$('newErr').textContent='';$('newBtn').disabled=true;
+  try{const r=await fetch('/workbench/api/sessions',{method:'POST',headers:hdr({'content-type':'application/json'}),body:JSON.stringify({view:$('pickView').value})});
+    const j=await r.json();if(!r.ok)throw new Error(j.detail||'failed');await loadSessions();openSession(j.sid);}
+  catch(e){$('newErr').textContent=e.message;}finally{$('newBtn').disabled=false;}});
+async function openSession(sid){SID=sid;PLAN=[];$('plan').innerHTML='';$('actRow').style.display='none';$('propErr').textContent='';
+  const j=await(await fetch(`/workbench/api/sessions/${sid}/profile`,{headers:hdr()})).json();
+  const p=j.profile;$('ws').style.display='';$('wsSid').textContent=sid;$('wsSrc').textContent=p.table;$('wsRows').textContent=p.rows;
+  $('dlBtn').href=`/workbench/api/sessions/${sid}/download`;
+  $('profT').innerHTML='<tr><th>column</th><th>type</th><th>null%</th><th>distinct</th><th>flags</th></tr>'+
+    p.columns.map(c=>{const f=[];if(c.whitespace_rows)f.push(c.whitespace_rows+' ws');if(c.mixed_type)f.push('mixed-type');
+      return `<tr><td style="font-family:var(--mono)">${esc(c.column)}</td><td>${esc(c.dtype)}</td><td${c.null_pct>20?' class="warn"':''}>${c.null_pct}%</td><td>${c.distinct}</td><td class="warn">${esc(f.join(' · '))}</td></tr>`;}).join('');
+  $('dupNote').textContent=p.duplicate_rows?`⚠ ${p.duplicate_rows} duplicate row(s)`:'';
+  renderRecipe(j.recipe);loadSessions();}
+function renderRecipe(r){$('recipe').textContent=(r&&r.length)?r.map(x=>`${x.op}(${JSON.stringify(x.args)}) → ${x.affected} affected`).join('\n'):'— nothing applied yet —';}
+$('propBtn').addEventListener('click',async()=>{if(!SID)return;$('propBtn').disabled=true;$('propErr').textContent='';$('plan').innerHTML='<div class="note">Scanning + asking the model…</div>';
+  try{const r=await fetch(`/workbench/api/sessions/${SID}/propose`,{method:'POST',headers:hdr({'content-type':'application/json'}),body:JSON.stringify({instruction:$('inst').value,model:$('mdl').value})});
+    const j=await r.json();if(!r.ok)throw new Error(j.detail||'failed');
+    PLAN=j.plan||[];
+    $('plan').innerHTML=(PLAN.map((o,i)=>`<label class="op"><input type="checkbox" data-i="${i}" checked><div><div class="nm">${esc(o.op)} <span style="color:var(--muted);font-weight:400">${esc(JSON.stringify(o.args))}</span></div><div class="rs">${esc(o.reason)}</div><div class="aff" id="aff${i}"></div></div></label>`).join(''))
+      +((j.rejected||[]).map(x=>`<div class="note">✗ rejected: ${esc(x.op)} — ${esc(x.reason)}</div>`).join(''))
+      +(j.note?`<div class="err">${esc(j.note)}</div>`:'')
+      +(!PLAN.length&&!j.note?'<div class="note">Model proposed nothing.</div>':'');
+    $('actRow').style.display=PLAN.length?'flex':'none';}
+  catch(e){$('propErr').textContent=e.message;$('plan').innerHTML='';}finally{$('propBtn').disabled=false;}});
+function selectedOps(){return [...document.querySelectorAll('#plan input:checked')].map(c=>PLAN[+c.getAttribute('data-i')]);}
+$('prevBtn').addEventListener('click',async()=>{const ops=selectedOps();if(!ops.length)return;$('prevBtn').disabled=true;
+  try{const j=await(await fetch(`/workbench/api/sessions/${SID}/preview`,{method:'POST',headers:hdr({'content-type':'application/json'}),body:JSON.stringify({ops})})).json();
+    (j.results||[]).forEach(r=>{const i=PLAN.findIndex(p=>p.op===r.op&&JSON.stringify(p.args)===JSON.stringify(r.args));
+      if(i>=0&&$('aff'+i))$('aff'+i).textContent=`preview: ${r.affected} affected`+(r.examples&&r.examples[0]&&r.examples[0].before!==undefined?` · e.g. "${r.examples[0].before}" → "${r.examples[0].after}"`:'');});
+  }finally{$('prevBtn').disabled=false;}});
+$('applyBtn').addEventListener('click',async()=>{const ops=selectedOps();if(!ops.length)return;
+  if(!confirm(`Apply ${ops.length} operation(s) to the sandbox copy? The original file is untouched.`))return;
+  $('applyBtn').disabled=true;
+  try{const j=await(await fetch(`/workbench/api/sessions/${SID}/apply`,{method:'POST',headers:hdr({'content-type':'application/json'}),body:JSON.stringify({ops})})).json();
+    renderRecipe(j.recipe);openSession(SID);}finally{$('applyBtn').disabled=false;}});
+$('resetBtn').addEventListener('click',async()=>{if(!SID||!confirm('Reset the sandbox to the original copy?'))return;
+  await fetch(`/workbench/api/sessions/${SID}/reset`,{method:'POST',headers:hdr()});openSession(SID);});
+$('delBtn').addEventListener('click',async()=>{if(!SID||!confirm('Delete this workbench session (its folder and copies)?'))return;
+  await fetch(`/workbench/api/sessions/${SID}`,{method:'DELETE',headers:hdr()});SID=null;$('ws').style.display='none';loadSessions();});
+async function loadRecipes(){try{const j=await(await fetch('/workbench/api/recipes',{headers:hdr()})).json();
+  $('recSel').innerHTML='<option value="">apply a saved recipe…</option>'+(j.recipes||[]).map(r=>`<option value="${esc(r.id)}">${esc(r.name)} (${r.ops.length} ops)</option>`).join('');}catch(e){}}
+$('saveRec').addEventListener('click',async()=>{if(!SID)return;const n=prompt('Recipe name:','Monthly clean');if(!n)return;
+  const r=await fetch('/workbench/api/recipes',{method:'POST',headers:hdr({'content-type':'application/json'}),body:JSON.stringify({sid:SID,name:n})});
+  const j=await r.json();$('recNote').textContent=r.ok?`Saved recipe "${j.name}" (${j.ops.length} ops).`:(j.detail||'save failed');loadRecipes();});
+$('applyRec').addEventListener('click',async()=>{if(!SID||!$('recSel').value)return;
+  const r=await fetch(`/workbench/api/sessions/${SID}/apply_recipe`,{method:'POST',headers:hdr({'content-type':'application/json'}),body:JSON.stringify({recipe_id:$('recSel').value})});
+  const j=await r.json();if(!r.ok){$('recNote').textContent=j.detail||'apply failed';return;}
+  $('recNote').textContent=`Applied "${j.recipe_name}": ${j.results.length} ops ran`+(j.skipped.length?`, ${j.skipped.length} skipped (${j.skipped.map(x=>x.op+': '+x.reason).join('; ')})`:'.');
+  renderRecipe(j.recipe);openSession(SID);});
+loadViews();loadModels();loadSessions();loadRecipes();
+</script>
+</body>
+</html>

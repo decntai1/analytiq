@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analytiq — Workspace</title>
+<script src="/static/vendor/vega.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/vega@5'"></script>
+<script src="/static/vendor/vega-lite.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/vega-lite@5'"></script>
+<script src="/static/vendor/vega-embed.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/vega-embed@6'"></script>
+<style>
+  @font-face{font-family:'InterVar';src:url('/static/fonts/inter-latin-var.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+  @font-face{font-family:'JBMono';src:url('/static/fonts/jetbrains-mono-latin-var.woff2') format('woff2');font-weight:100 800;font-style:normal;font-display:swap}
+  :root{
+    --canvas:#f4f7f7; --sidebar:#fbfcfc; --card:#ffffff;
+    --ink:#0c1a20; --text:#3a525c; --muted:#6a818a; --faint:#9bafb6;
+    --line:#e4ecec; --line-soft:#eef3f3;
+    --teal:#0c8c7e; --teal-press:#0a7669; --teal-bright:#13b4a2;
+    --teal-soft:#e7f6f3; --teal-tint:rgba(12,140,126,.09);
+    --slate:#0c1a20;
+    --ok:#0c8c7e; --warn:#b4690b; --warn-soft:#fbf0df; --err:#d4453f; --err-soft:#fceaea;
+    --on-teal:#ffffff;
+    --sans:'InterVar',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:'JBMono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --shadow-sm:0 1px 2px rgba(12,26,32,.05); --shadow:0 4px 16px rgba(12,26,32,.07);
+    --shadow-lg:0 12px 36px rgba(12,26,32,.12); --r:12px; --r-sm:9px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--canvas);color:var(--text);font-family:var(--sans);font-size:15px;
+    line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  button{font-family:inherit}
+  .app{display:grid;grid-template-columns:270px 1fr;height:100vh}
+
+  /* sidebar */
+  .sidebar{background:var(--sidebar);border-right:1px solid var(--line);display:flex;flex-direction:column;
+    padding:18px 16px;gap:20px;overflow-y:auto}
+  .brand{display:flex;align-items:center;gap:10px;padding:2px 6px}
+  .logo{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;
+    background:linear-gradient(150deg,var(--teal-bright),var(--teal));box-shadow:var(--shadow-sm)}
+  .logo svg{width:17px;height:17px}
+  .brand .name{font-weight:730;font-size:18px;color:var(--ink);letter-spacing:-.02em}
+  .brand .name b{color:var(--teal)}
+  .slab{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--faint);margin:0 6px 9px}
+  .sec{display:flex;flex-direction:column}
+  .datacard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;box-shadow:var(--shadow-sm)}
+  .datacard .row{display:flex;align-items:center;justify-content:space-between;padding:4px 0}
+  .datacard .lab{color:var(--muted);font-size:13.5px;display:flex;align-items:center;gap:8px}
+  .datacard .val{color:var(--ink);font-weight:680;font-size:14px;font-family:var(--mono)}
+  .datacard .src{margin-top:9px;padding-top:9px;border-top:1px solid var(--line-soft);font-family:var(--mono);
+    font-size:11px;color:var(--faint);display:flex;justify-content:space-between}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);flex:none}
+  .field{display:flex;flex-direction:column;gap:7px}
+  select,.keyinput{width:100%;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:10px 11px;font-size:14px;font-family:inherit;outline:none;box-shadow:var(--shadow-sm)}
+  select{appearance:none;cursor:pointer;padding-right:30px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236a818a' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 11px center}
+  select:focus-visible,.keyinput:focus-visible,textarea:focus-visible{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-tint)}
+  .keyinput{font-family:var(--mono);font-size:13px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--card);color:var(--text);
+    border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 13px;font-size:14px;font-weight:560;cursor:pointer;
+    box-shadow:var(--shadow-sm);transition:background .14s,border-color .14s,box-shadow .14s}
+  .btn:hover{background:#fbfdfd;border-color:#d2e0e0}
+  .btn:focus-visible{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-tint)}
+  .btn svg{width:16px;height:16px}
+  .btn.full{width:100%}
+  .upnote{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:7px;min-height:1em}
+  .upnote.ok{color:var(--ok)} .upnote.err{color:var(--err)}
+  .sidefoot{margin-top:auto;padding:10px 6px 2px}
+  .modebadge{display:inline-flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--line);border-radius:20px;
+    padding:5px 11px;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--muted);box-shadow:var(--shadow-sm)}
+
+  /* main */
+  .main{display:flex;flex-direction:column;min-width:0;height:100vh}
+  .scroll{flex:1;overflow-y:auto}
+  .conv{max-width:760px;margin:0 auto;padding:34px 24px 18px;width:100%}
+  .welcome{margin-top:7vh;text-align:center}
+  .welcome h1{font-size:30px;font-weight:740;color:var(--ink);letter-spacing:-.025em;margin:0 0 10px}
+  .welcome p{font-size:15.5px;color:var(--muted);margin:0 auto;max-width:50ch}
+  .suggest{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:28px;text-align:left}
+  .scard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px 16px;cursor:pointer;
+    box-shadow:var(--shadow-sm);transition:border-color .14s,box-shadow .14s,transform .14s}
+  .scard:hover{border-color:#bfe2dc;box-shadow:var(--shadow);transform:translateY(-1px)}
+  .scard .q{color:var(--ink);font-weight:560;font-size:14.5px;line-height:1.45}
+  .scard .tag{display:inline-block;margin-top:9px;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--teal);
+    background:var(--teal-soft);border-radius:6px;padding:2px 8px}
+
+  .turn{margin:26px 0;animation:rise .24s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .qb{display:flex;justify-content:flex-end}
+  .qb .t{background:var(--teal);color:var(--on-teal);border-radius:16px 16px 4px 16px;padding:11px 16px;max-width:82%;
+    font-size:15px;box-shadow:var(--shadow-sm);white-space:pre-wrap}
+  .ab{margin-top:18px}
+  .ahead{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+  .av{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;
+    background:linear-gradient(150deg,var(--teal-bright),var(--teal))}
+  .av svg{width:14px;height:14px}
+  .aname{font-weight:680;color:var(--ink);font-size:14px}
+  .answer{color:var(--text);font-size:15.5px;line-height:1.62;white-space:pre-wrap}
+  .answer.think{display:flex;align-items:center;gap:9px;color:var(--muted)}
+  .dots{display:inline-flex;gap:4px}.dots i{width:6px;height:6px;border-radius:50%;background:var(--teal);opacity:.5;animation:bnc 1.1s infinite ease-in-out}
+  .dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+  @keyframes bnc{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-4px);opacity:1}}
+
+  .viz{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:14px 0;box-shadow:var(--shadow-sm)}
+  .viz .vega{width:100%}
+  .viz .cap{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:10px}
+  .viz-fail{font-size:13px;color:var(--err)}
+  .tablewrap{overflow-x:auto}
+  table.grid{border-collapse:collapse;width:100%;font-size:13px}
+  table.grid th,table.grid td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  table.grid th{color:var(--muted);font-family:var(--mono);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:#fafcfc}
+  table.grid td{font-variant-numeric:tabular-nums}
+
+  /* deck result card */
+  .deckcard{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--r);padding:15px 16px;margin:14px 0;box-shadow:var(--shadow-sm)}
+  .deckcard .meta{display:flex;align-items:center;gap:12px}
+  .deckcard .di{width:38px;height:38px;border-radius:10px;background:var(--teal-soft);display:grid;place-items:center;flex:none}
+  .deckcard .di svg{width:19px;height:19px;color:var(--teal)}
+  .deckcard .dt{color:var(--ink);font-weight:620;font-size:14.5px}
+  .deckcard .ds{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:2px}
+  .btn-teal{background:var(--teal);color:#fff;border:0;border-radius:var(--r-sm);padding:10px 15px;font-weight:600;
+    font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+  .btn-teal:hover{background:var(--teal-press)}
+  .btn-teal svg{width:15px;height:15px}
+
+  /* signature: how this was answered */
+  .reason{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+  .rh{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border-bottom:1px solid var(--line-soft)}
+  .rh .t{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:680;color:var(--ink)}
+  .rh .t svg{width:15px;height:15px;color:var(--teal)}
+  .rtoggle{background:none;border:0;color:var(--muted);font-size:12px;font-weight:550;cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:4px 6px;border-radius:6px}
+  .rtoggle:hover{background:var(--line-soft);color:var(--ink)}
+  .rtoggle svg{width:13px;height:13px;transition:transform .18s}.rtoggle.open svg{transform:rotate(180deg)}
+  .rbody{padding:13px 15px;display:flex;flex-wrap:wrap;gap:9px 14px;align-items:center}
+  .fg{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .fgl{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:500;border-radius:7px;
+    padding:4px 10px;background:#f1f5f5;color:var(--text);border:1px solid var(--line)}
+  .badge.intent{background:var(--teal-soft);color:var(--teal);border-color:transparent;text-transform:capitalize}
+  .badge.muted{color:var(--muted)}
+  .badge.err{background:var(--err-soft);color:var(--err);border-color:transparent}
+  .used{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:500;color:var(--teal);
+    background:var(--teal-soft);border-radius:7px;padding:4px 10px}
+  .pill svg{width:12px;height:12px;opacity:.85}
+  .pill.none{color:var(--warn);background:var(--warn-soft)}
+  .rdetail{border-top:1px solid var(--line-soft);padding:13px 15px;display:none;flex-direction:column;gap:12px}
+  .rdetail.show{display:flex}
+  .dl{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+  pre.sql{background:#f6faf9;border:1px solid var(--line);border-radius:9px;padding:12px 13px;margin:0;overflow-x:auto;
+    font-family:var(--mono);font-size:12.5px;color:#2c4a52;line-height:1.55}
+  .sources{font-size:13px;color:var(--text)}.sources .s{font-family:var(--mono);color:var(--teal);font-weight:500}
+  .errline{background:var(--err-soft);border:1px solid #f3cdcb;color:var(--err);border-radius:var(--r);padding:12px 14px;font-size:14px}
+
+  /* composer */
+  .composer{padding:14px 24px 20px;background:linear-gradient(transparent,var(--canvas) 32%)}
+  .cwrap{max-width:760px;margin:0 auto}
+  .cinner{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    display:flex;align-items:flex-end;gap:8px;padding:9px 9px 9px 16px;transition:border-color .14s,box-shadow .14s}
+  .cinner:focus-within{border-color:#bfe2dc;box-shadow:var(--shadow-lg)}
+  textarea{flex:1;resize:none;border:0;outline:none;background:transparent;color:var(--ink);font-family:inherit;
+    font-size:15.5px;line-height:1.5;max-height:180px;padding:8px 0}
+  textarea::placeholder{color:var(--faint)}
+  .deckbtn{flex:none;border:1px solid var(--line);background:#fff;color:var(--teal);border-radius:10px;height:40px;padding:0 13px;
+    font-weight:600;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .deckbtn:hover{background:var(--teal-soft);border-color:transparent}
+  .deckbtn svg{width:15px;height:15px}
+  .sendbtn{flex:none;width:40px;height:40px;border-radius:10px;border:0;background:var(--teal);color:#fff;cursor:pointer;
+    display:grid;place-items:center;transition:background .14s,opacity .14s}
+  .sendbtn:hover{background:var(--teal-press)} .sendbtn:disabled{opacity:.45;cursor:not-allowed}
+  .sendbtn svg{width:18px;height:18px}
+  .chint{max-width:760px;margin:9px auto 0;text-align:center;font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+  @media (max-width:880px){
+    .app{grid-template-columns:1fr;height:auto;min-height:100vh}.main{height:auto;min-height:60vh}
+    .sidebar{flex-direction:row;align-items:center;flex-wrap:wrap;gap:10px;border-right:0;border-bottom:1px solid var(--line);
+      position:sticky;top:0;z-index:5;padding:11px 14px;overflow:visible}
+    .brand{flex:1;padding:0}.slab,.datacard,.sidefoot{display:none}
+    .sec{flex-direction:row}.sec.model select{width:auto;min-width:150px}.keyinput{width:140px}.btn.full{width:auto}
+    .conv{padding:24px 16px}.suggest{grid-template-columns:1fr}.scroll{flex:initial}
+    .deckbtn span{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}  /* inference settings drawer */
+  .credchip{position:fixed;top:12px;right:16px;z-index:55;display:none;align-items:center;gap:8px;background:var(--card,#fff);border:1px solid var(--line,#e6eceb);border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;box-shadow:0 2px 10px rgba(12,26,32,.07)}
+  .credchip.on{display:flex}.credchip .pl{font-weight:640;color:var(--teal,#0c8c7e)}.credchip .cr{font-family:var(--mono,monospace);color:#3a525c}
+  .pf h4{margin:16px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#8a9794}
+  .pf .kv{font-size:13.5px;margin:3px 0}.pf .kv b{font-weight:640}
+  .credbar{height:8px;border-radius:999px;background:#edf3f1;overflow:hidden;margin:6px 0 2px}.credbar i{display:block;height:100%;background:var(--teal,#0c8c7e)}
+  .tiercard{border:1px solid var(--line,#e6eceb);border-radius:10px;padding:10px 12px;margin:8px 0}
+  .tiercard.cur{border-color:var(--teal,#0c8c7e);background:#f2fbf9}
+  .tiercard .tt{display:flex;align-items:baseline;gap:8px}.tiercard .tt b{font-size:14px}.tiercard .tt .pr{font-family:var(--mono,monospace);color:var(--teal,#0c8c7e)}.tiercard .tt .pn{font-size:11px;color:#8a9794}
+  .tiercard p{margin:4px 0 8px;font-size:12.5px;color:#5b6b70}
+  .tierbtn{border:1px solid var(--teal,#0c8c7e);background:var(--teal,#0c8c7e);color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:620;cursor:pointer}
+  .tierbtn.ghost{background:#fff;color:var(--teal,#0c8c7e)}.tierbtn:disabled{opacity:.5;cursor:default}
+  .pf input{width:100%;border:1px solid var(--line,#e6eceb);border-radius:8px;padding:7px 9px;font-size:13px;margin:4px 0}
+  .pf .msg{font-size:12px;margin-top:4px}.pf .msg.ok{color:#1c6b58}.pf .msg.no{color:#b04a4a}
+  .scrim{position:fixed;inset:0;background:rgba(12,26,32,.32);opacity:0;pointer-events:none;transition:opacity .2s;z-index:60}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:392px;max-width:92vw;background:var(--card);border-left:1px solid var(--line);
+    box-shadow:-16px 0 48px rgba(12,26,32,.16);z-index:61;transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column}
+  .drawer.open{transform:none}
+  .dwh{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line-soft)}
+  .dwh h2{font-size:17px;font-weight:720;color:var(--ink);letter-spacing:-.01em;margin:0}
+  .dwh .x{background:none;border:0;cursor:pointer;color:var(--muted);width:30px;height:30px;border-radius:8px;display:grid;place-items:center}
+  .dwh .x:hover{background:var(--line-soft);color:var(--ink)}.dwh .x svg{width:18px;height:18px}
+  .rtbox{margin:16px 20px 4px;background:var(--teal-soft);border:1px solid rgba(12,140,126,.16);border-radius:11px;padding:12px 14px}
+  .rtbox .rt-top{display:flex;align-items:center;gap:8px}
+  .rtbox .rt-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);flex:none}
+  .rtbox .rt-name{font-weight:680;color:var(--teal);font-size:13.5px}
+  .rtbox .rt-tag{margin-left:auto;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--teal);background:#fff;border-radius:6px;padding:2px 7px}
+  .rtbox .rt-url{font-family:var(--mono);font-size:11.5px;color:var(--teal);opacity:.85;margin-top:6px;word-break:break-all}
+  .rtbox .rt-note{font-size:12px;color:var(--text);margin-top:7px;line-height:1.45}
+  .dwbody{flex:1;overflow-y:auto;padding:6px 20px 14px}
+  .param{padding:15px 0;border-bottom:1px solid var(--line-soft)}.param:last-child{border-bottom:0}
+  .param .ph{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+  .param .pl{font-weight:620;color:var(--ink);font-size:13.5px}
+  .param .pv{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--teal);background:var(--teal-soft);border-radius:6px;
+    padding:2px 9px;min-width:40px;text-align:center}
+  .param input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:3px;background:var(--line);outline:none;margin:5px 0}
+  .param input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--teal);
+    cursor:pointer;box-shadow:0 1px 3px rgba(12,118,105,.4);border:2px solid #fff}
+  .param input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--teal);cursor:pointer;border:2px solid #fff}
+  .param input[type=range]:focus-visible{box-shadow:0 0 0 3px var(--teal-tint)}
+  .param input[type=number],.param input[type=text]{width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;
+    padding:8px 10px;font-family:var(--mono);font-size:13px;color:var(--ink);outline:none}
+  .param input[type=number]:focus-visible,.param input[type=text]:focus-visible{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-tint)}
+  .param .help{font-size:12px;color:var(--muted);line-height:1.5;margin-top:8px}
+  .dwf{border-top:1px solid var(--line-soft);padding:14px 20px;display:flex;align-items:center;gap:10px}
+  .dwf .save{font-family:var(--mono);font-size:11.5px;color:var(--ok);opacity:0;transition:opacity .2s}.dwf .save.show{opacity:1}
+  .dwf .reset{margin-left:auto;background:none;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);cursor:pointer;font-weight:550}
+  .dwf .reset:hover{background:var(--line-soft)}
+  /* account card / chats / answer actions / deck selection */
+  .ucard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .uline{font-weight:620;font-size:13.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+  .usub{font-size:12px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px}
+  .planpill{background:var(--teal-soft);color:var(--teal);border-radius:999px;padding:2px 9px;font-weight:640;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  .chatnew{border:1px solid var(--line);background:#fff;color:var(--teal);border-radius:8px;font-size:11.5px;font-weight:620;padding:3px 8px;cursor:pointer}
+  .chatnew:hover{background:var(--teal-soft)}
+  .chatlist{display:flex;flex-direction:column;gap:2px;max-height:220px;overflow:auto}
+  .chatitem{border:0;background:none;text-align:left;font-size:12.5px;color:var(--ink);padding:7px 9px;border-radius:9px;cursor:pointer;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+  .chatitem:hover{background:var(--teal-soft)}
+  .chatitem.active{background:var(--teal-soft);color:var(--teal);font-weight:620}
+  .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .actbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--muted);
+    border-radius:9px;font-size:12px;font-weight:600;padding:6px 11px;cursor:pointer}
+  .actbtn:hover{color:var(--teal);border-color:var(--teal);background:var(--teal-soft)}
+  .actbtn.sel{color:#fff;background:var(--teal);border-color:var(--teal)}
+  .actbtn svg{width:13px;height:13px}
+  .deckbar{position:fixed;right:22px;bottom:92px;z-index:40;display:none;align-items:center;gap:10px;background:var(--ink,#0c1a20);
+    color:#fff;border-radius:14px;padding:11px 16px;box-shadow:0 12px 30px rgba(10,25,30,.25);font-size:13.5px;font-weight:620}
+  .deckbar.show{display:flex}
+  .deckbar button{border:0;background:var(--teal);color:#fff;border-radius:9px;padding:7px 13px;font-weight:640;cursor:pointer}
+  .deckbar .clr{background:transparent;color:#9fb3ba;font-weight:500}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <a class="brand" href="/" style="text-decoration:none"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M10 19V5M16 19v-6M22 19H2"/></svg></span><span class="name">analyt<b>iq</b></span></a>
+
+    <div class="sec">
+      <div class="slab">Workspace</div>
+      <div class="datacard">
+        <div class="row"><span class="lab"><span class="dot"></span>Tables</span><span class="val" id="tblCount">—</span></div>
+        <div class="row"><span class="lab"><span class="dot" style="background:var(--teal-bright)"></span>Documents</span><span class="val" id="docCount">—</span></div>
+        <div class="src"><span id="srcMode">connecting…</span><span id="deployMode"></span></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="slab">Add data</div>
+      <input type="file" id="file" hidden accept=".csv,.parquet,.xlsx,.xls,.pdf,.txt,.md">
+      <button class="btn full" id="upBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Upload a table or document</button>
+      <div class="upnote" id="upNote"></div>
+    </div>
+
+    <div class="sec model">
+      <div class="slab">Model</div>
+      <div class="field"><select id="model"></select></div>
+      <button class="btn full" id="cfgBtn" style="margin-top:8px" title="Calibrate sampling settings (temperature, top-p, …)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Inference settings</button>
+    </div>
+
+    <div class="sec" id="authSection" style="display:none">
+      <div class="slab">API key</div>
+      <div class="field"><input class="keyinput" id="apikey" type="password" placeholder="Paste your key" autocomplete="off"></div>
+    </div>
+
+    <div class="sec" id="userSection" style="display:none">
+      <div class="slab">Account</div>
+      <div class="ucard">
+        <div class="uline" id="uEmail">—</div>
+        <div class="usub" id="uWorkspace">—</div>
+        <div class="usub"><span class="planpill" id="uPlan">—</span> <span id="uCredits"></span></div>
+        <button class="btn full" id="logoutBtn" style="margin-top:8px">Sign out</button>
+      </div>
+    </div>
+
+    <div class="sec" id="chatsSection" style="display:none">
+      <div class="slab" style="display:flex;justify-content:space-between;align-items:center">Chats
+        <button class="chatnew" id="newChatBtn" title="New chat">+ New</button></div>
+      <div class="chatlist" id="chatList"></div>
+    </div>
+
+    <div class="sidefoot"><span class="modebadge" id="modeBadge">·</span> <span class="modebadge" id="runtimeBadge" title="Model-serving runtime" style="margin-top:6px">·</span></div>
+  </aside>
+
+  <div class="main">
+    <div class="scroll">
+      <div class="conv" id="feed">
+        <div class="welcome" id="welcome">
+          <h1>What do you want to know?</h1>
+          <p>Ask in plain language across your tables and documents. Every answer comes back with the tables and SQL behind it — or turn a question into a slide deck.</p>
+          <div class="suggest" id="suggest">
+            <div class="scard"><div class="q">Show total revenue per month for 2024</div><div class="tag">chart</div></div>
+            <div class="scard"><div class="q">What was net revenue in Q4?</div><div class="tag">metric</div></div>
+            <div class="scard"><div class="q">Top 10 products by revenue</div><div class="tag">ranking</div></div>
+            <div class="scard"><div class="q">Build a Q4 revenue review deck</div><div class="tag">deck</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="cwrap">
+        <div class="cinner">
+          <textarea id="q" rows="1" placeholder="Ask anything about your data…"></textarea>
+          <button class="deckbtn" id="deck" title="Generate an editable PowerPoint from this request">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg><span>Build deck</span></button>
+          <button class="sendbtn" id="send" title="Ask (Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+        </div>
+        <div class="chint">Enter to ask · Shift+Enter for a new line · Build deck turns this request into slides</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="credchip" id="credChip" title="Profile, plan & billing"><span class="pl" id="chipPlan"></span><span class="cr" id="chipCred"></span></div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="profileDrawer" aria-hidden="true">
+  <div class="dwh"><h2>Profile &amp; billing</h2><button class="x" id="pfClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="pf" style="padding:16px 20px;overflow-y:auto">
+    <h4>Account</h4>
+    <div class="kv">Email: <b id="pfEmail"></b></div>
+    <div class="kv">Workspace: <b id="pfWs"></b></div>
+    <h4>Plan &amp; balance</h4>
+    <div class="kv"><b id="pfPlan"></b> · <span id="pfPrice" style="color:#8a9794"></span></div>
+    <div class="credbar"><i id="pfBar" style="width:0%"></i></div>
+    <div class="kv" style="font-size:12px;color:#8a9794"><span id="pfCred"></span> · resets monthly</div>
+    <div id="pfPortal"></div>
+    <h4>Choose your tier</h4>
+    <div id="pfTiers"></div>
+    <h4>Change password</h4>
+    <input type="password" id="pwCur" placeholder="current password" autocomplete="current-password">
+    <input type="password" id="pwNew" placeholder="new password (min 8 chars)" autocomplete="new-password">
+    <input type="password" id="pwNew2" placeholder="repeat new password" autocomplete="new-password">
+    <button class="tierbtn" id="pwBtn" style="margin-top:4px">Update password</button>
+    <div class="msg" id="pwMsg"></div>
+  </div>
+</aside>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="dwh"><h2>Inference settings</h2><button class="x" id="cfgClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="rtbox">
+    <div class="rt-top"><span class="rt-dot"></span><span class="rt-name" id="rtName">runtime</span><span class="rt-tag" id="rtTag">—</span></div>
+    <div class="rt-url" id="rtUrl"></div>
+    <div class="rt-note" id="rtNote"></div>
+  </div>
+  <div class="dwbody" id="cfgBody"></div>
+  <div class="dwf"><span class="save" id="cfgSaved">✓ applied</span><button class="reset" id="cfgReset">Reset to defaults</button></div>
+</aside>
+
+<script>
+const $=id=>document.getElementById(id);
+const feed=$('feed'),welcome=$('welcome'),qEl=$('q'),send=$('send'),deckBtn=$('deck'),modelSel=$('model'),
+  fileInput=$('file'),upBtn=$('upBtn'),upNote=$('upNote'),apikey=$('apikey'),authSection=$('authSection');
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const tableSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>';
+const VCONFIG={background:'#ffffff',font:'InterVar, system-ui, sans-serif',
+  axis:{labelColor:'#6a818a',titleColor:'#6a818a',gridColor:'#eef3f3',domainColor:'#e4ecec',tickColor:'#e4ecec',labelFontSize:11,titleFontSize:12},
+  legend:{labelColor:'#3a525c',titleColor:'#6a818a'},title:{color:'#0c1a20',fontSize:14,fontWeight:600,anchor:'start'},
+  view:{stroke:'transparent'},range:{category:['#0c8c7e','#13b4a2','#2563eb','#d97706','#7c3aed','#db2777','#0891b2','#65a30d']},
+  mark:{color:'#0c8c7e'}};
+
+function authHeaders(extra){const h=Object.assign({},extra||{});const k=apikey.value.trim();
+  if(k){h['X-API-Key']=k;sessionStorage.setItem('aq_key',k);}return h;}
+
+async function boot(){
+  try{const m=await(await fetch('/models')).json();modelSel.innerHTML='';
+    m.models.forEach(x=>{const o=document.createElement('option');o.value=x.name;
+      o.textContent=x.name+(x.provider==='anthropic'?' · claude':'');if(x.name===m.default)o.selected=true;modelSel.appendChild(o);});
+  }catch(e){modelSel.innerHTML='<option>models unavailable</option>';}
+  try{const h=await(await fetch('/health')).json();
+    $('deployMode').textContent=h.deploy_mode||'';$('srcMode').textContent='source · '+(h.data_source||'—');
+    $('modeBadge').innerHTML=(h.multi_tenant?'<span class="dot" style="background:var(--teal-bright)"></span> multi-tenant':'<span class="dot"></span> single-tenant');
+    if(h.multi_tenant){authSection.style.display='';const s=sessionStorage.getItem('aq_key');if(s)apikey.value=s;}
+  }catch(e){$('srcMode').textContent='backend unreachable';}
+  loadTables();
+}
+async function loadTables(){
+  try{const r=await fetch('/tables',{headers:authHeaders()});
+    if(!r.ok){$('tblCount').textContent='—';$('docCount').textContent='—';if(r.status===401)$('srcMode').textContent='enter your API key →';return;}
+    const t=await r.json();$('tblCount').textContent=t.tables.length;$('docCount').textContent=t.docs_indexed;
+  }catch(e){}
+}
+apikey&&apikey.addEventListener('change',loadTables);
+
+// ---- profile & billing drawer -------------------------------------------
+const pfDrawer=$('profileDrawer');let BILLCFG=null;
+function openProfile(){pfDrawer.classList.add('open');scrim.classList.add('open');pfDrawer.setAttribute('aria-hidden','false');}
+function closeProfile(){pfDrawer.classList.remove('open');scrim.classList.remove('open');pfDrawer.setAttribute('aria-hidden','true');}
+$('pfClose').addEventListener('click',closeProfile);
+$('credChip').addEventListener('click',openProfile);
+scrim.addEventListener('click',closeProfile);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pfDrawer.classList.contains('open'))closeProfile();});
+async function renderProfile(){
+  if(!ME)return;const pl=ME.plan;
+  $('chipPlan').textContent=pl.label;
+  $('chipCred').textContent=`⚡ ${pl.credits_remaining} / ${pl.credits_month}`;
+  $('credChip').classList.add('on');
+  $('pfEmail').textContent=ME.email;$('pfWs').textContent=ME.workspace.name;
+  $('pfPlan').textContent=pl.label;$('pfPrice').textContent=pl.price?`${pl.price} ${pl.price_note}`:'';
+  const pct=pl.credits_month?Math.min(100,Math.round(100*pl.credits_used/pl.credits_month)):0;
+  $('pfBar').style.width=pct+'%';
+  $('pfCred').textContent=`${pl.credits_used} used · ${pl.credits_remaining} remaining of ${pl.credits_month}`;
+  if(!BILLCFG){try{BILLCFG=await(await fetch('/billing/config')).json();}catch(e){BILLCFG={configured:false,plans:[]};}}
+  $('pfTiers').innerHTML=(ME.plans_catalog||[]).map(t=>{
+    const cur=t.name===pl.name, buyable=BILLCFG.configured&&BILLCFG.plans.includes(t.name)&&!cur;
+    return `<div class="tiercard${cur?' cur':''}"><div class="tt"><b>${esc(t.label)}</b><span class="pr">${esc(t.price)}</span><span class="pn">${esc(t.price_note)}</span></div>
+      <p>${esc(t.blurb)}</p>
+      ${cur?'<button class="tierbtn ghost" disabled>Current plan</button>'
+           :buyable?`<button class="tierbtn" data-plan="${esc(t.name)}">Choose ${esc(t.label)}</button>`
+           :t.name==='free'?'':'<span class="pn">available at launch</span>'}</div>`;}).join('')
+    +`<div class="tiercard"><div class="tt"><b>On-prem</b><span class="pn">annual license</span></div>
+      <p>Your hardware, your models, your data never leaves the building. Air-gap supported.</p>
+      <a class="tierbtn ghost" href="mailto:hello@analytiq.app?subject=On-prem%20Analytiq" style="text-decoration:none">Talk to us</a></div>`;
+  $('pfPortal').innerHTML=(BILLCFG.configured&&pl.name!=='free')?'<button class="tierbtn ghost" id="pfPortalBtn" style="margin-top:6px">Manage billing</button>':'';
+  const pb=$('pfPortalBtn');if(pb)pb.addEventListener('click',async()=>{
+    const r=await fetch('/billing/portal',{method:'POST',headers:authHeaders()});const j=await r.json();
+    if(r.ok&&j.url)location.href=j.url;else alert(j.detail||'portal unavailable');});
+}
+$('pfTiers').addEventListener('click',async e=>{const b=e.target.closest('[data-plan]');if(!b)return;
+  b.disabled=true;
+  try{const r=await fetch('/billing/checkout',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({plan:b.getAttribute('data-plan')})});
+    const j=await r.json();if(r.ok&&j.url)location.href=j.url;else{alert(j.detail||'checkout failed');b.disabled=false;}}
+  catch(err){alert('checkout failed');b.disabled=false;}});
+$('pwBtn').addEventListener('click',async()=>{const m=$('pwMsg');m.className='msg';m.textContent='';
+  if($('pwNew').value!==$('pwNew2').value){m.className='msg no';m.textContent='New passwords do not match.';return;}
+  const r=await fetch('/auth/change_password',{method:'POST',headers:authHeaders({'content-type':'application/json'}),
+    body:JSON.stringify({current:$('pwCur').value,new:$('pwNew').value})});
+  const j=await r.json().catch(()=>({}));
+  if(r.ok){m.className='msg ok';m.textContent='Password updated.';['pwCur','pwNew','pwNew2'].forEach(i=>$(i).value='');}
+  else{m.className='msg no';m.textContent=j.detail||'Update failed.';}});
+boot();
+
+function autosize(){qEl.style.height='auto';qEl.style.height=Math.min(qEl.scrollHeight,180)+'px';}
+qEl.addEventListener('input',autosize);
+qEl.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask();}});
+send.addEventListener('click',ask);
+deckBtn.addEventListener('click',buildDeck);
+$('suggest').addEventListener('click',e=>{const c=e.target.closest('.scard');if(c){qEl.value=c.querySelector('.q').textContent;autosize();
+  if(c.querySelector('.tag').textContent==='deck')buildDeck();else ask();}});
+
+function newTurn(label){
+  welcome.style.display='none';
+  const turn=document.createElement('div');turn.className='turn';
+  turn.innerHTML=`<div class="qb"><div class="t">${esc(label)}</div></div>
+    <div class="ab"><div class="ahead"><span class="av"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M4 19V10M10 19V5M16 19v-6M22 19H2"/></svg></span><span class="aname">Analytiq</span></div>
+    <div class="answer think"><span class="dots"><i></i><i></i><i></i></span><span class="tx">Working…</span></div></div>`;
+  feed.appendChild(turn);scrollEnd();return turn.querySelector('.ab');
+}
+let busy=false;
+async function ask(){
+  if(busy)return;const question=qEl.value.trim();if(!question)return;
+  busy=true;send.disabled=true;
+  const ab=newTurn(question);ab.dataset.q=question;ab.querySelector('.tx').textContent='Analyzing your data…';
+  qEl.value='';autosize();
+  try{
+    if(ME&&!CURRENT_CONV){try{CURRENT_CONV=(await(await fetch('/chats',{method:'POST'})).json()).conv_id;loadChats();}catch(e){}}
+    const payload={question,model:modelSel.value};if(ME&&CURRENT_CONV)payload.conversation_id=CURRENT_CONV;
+    const r=await fetch('/ask',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify(payload)});
+    if(r.status===401)renderErr(ab,'This deployment needs an API key. Paste your key in the sidebar and try again.');
+    else if(r.status===402)renderErr(ab,'You\'ve used all your questions for this month on the free plan. Upgrade to keep going.');
+    else if(r.status===429)renderErr(ab,'You\'ve hit the request rate limit. Wait a moment and try again.');
+    else if(!r.ok)renderErr(ab,'The server returned an error ('+r.status+').');
+    else{const d=await r.json();render(ab,d);updateCredits(d);}
+  }catch(e){renderErr(ab,'Couldn\'t reach the analysis engine. Check that the server and model are running.');}
+  finally{busy=false;send.disabled=false;scrollEnd();loadTables();}
+}
+async function buildDeck(){
+  if(busy)return;const q=qEl.value.trim();if(!q){qEl.focus();return;}
+  busy=true;send.disabled=true;deckBtn.disabled=true;
+  const ab=newTurn('Build deck — '+q);ab.querySelector('.tx').textContent='Planning slides, running each query, rendering charts… this can take a moment.';
+  qEl.value='';autosize();
+  try{
+    const r=await fetch('/presentation',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({request:q,model:modelSel.value})});
+    if(r.status===401){renderErr(ab,'This deployment needs an API key to build a deck.');}
+    else if(!r.ok){renderErr(ab,'The deck couldn\'t be generated ('+r.status+'). Try a more specific request.');}
+    else{
+      const n=r.headers.get('x-deck-slides')||'';
+      const blob=await r.blob();const url=URL.createObjectURL(blob);
+      ab.querySelector('.answer').outerHTML=
+        `<div class="answer">Your deck is ready${n?` — ${esc(n)} slides`:''}, with an audit appendix showing the SQL behind every number.</div>
+         <div class="deckcard"><div class="meta"><span class="di"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg></span>
+           <span><span class="dt">analytiq-deck.pptx</span><span class="ds">editable PowerPoint · ${n||'—'} slides</span></span></div>
+           <a class="btn-teal" href="${url}" download="analytiq-deck.pptx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download .pptx</a></div>`;
+    }
+  }catch(e){renderErr(ab,'The deck couldn\'t be generated. Check that the model is running.');}
+  finally{busy=false;send.disabled=false;deckBtn.disabled=false;scrollEnd();loadTables();}
+}
+function renderErr(ab,msg){ab.querySelector('.answer').outerHTML=`<div class="errline">${esc(msg)}</div>`;}
+
+function render(ab,data){
+  const ans=ab.querySelector('.answer');ans.className='answer';ans.textContent=data.answer||'';
+  ab._charts=[];
+  (data.charts||[]).forEach((spec,i)=>{
+    const card=document.createElement('div');card.className='viz';
+    if(spec&&spec._kind==='table'){if(spec.title){const cap=document.createElement('div');cap.className='cap';cap.textContent=spec.title;card.appendChild(cap);}
+      const w=document.createElement('div');w.className='tablewrap';w.appendChild(tableEl(spec));card.appendChild(w);ab.appendChild(card);
+      ab._charts.push({spec,view:null});
+    }else{const hold=document.createElement('div');hold.className='vega';hold.id='v'+Date.now()+'_'+i;card.appendChild(hold);ab.appendChild(card);
+      if(typeof vegaEmbed==='undefined'){hold.innerHTML='<div class="viz-fail">Chart engine not loaded.</div>';ab._charts.push({spec,view:null});}
+      else{const p=vegaEmbed('#'+hold.id,spec,{actions:false,renderer:'svg',config:VCONFIG}).then(res=>res.view).catch(()=>{hold.innerHTML='<div class="viz-fail">This chart could not be rendered.</div>';return null;});
+        ab._charts.push({spec,view:p});}}
+  });
+  ab.appendChild(reason(data));
+  attachActions(ab,data);
+}
+function reason(data){
+  const arm=data.plan?data.plan.arm:'—';const tbls=data.tables_retrieved||[];const nq=(data.sql_log||[]).length;
+  const wrap=document.createElement('div');wrap.className='reason';
+  const used=tbls.length?`<span class="used">${tbls.map(t=>`<span class="pill">${tableSVG}${esc(t)}</span>`).join('')}</span>`:`<span class="pill none">no tables used</span>`;
+  let chips=`<div class="fg"><span class="fgl">Intent</span><span class="badge intent">${esc(arm)}</span></div>`;
+  chips+=`<div class="fg"><span class="fgl">Tables used</span>${used}</div>`;
+  if(data.model)chips+=`<div class="fg"><span class="badge muted">${esc(data.model)}</span></div>`;
+  if(nq)chips+=`<div class="fg"><span class="badge muted">${nq} quer${nq===1?'y':'ies'}</span></div>`;
+  if(data.scaffold)chips+=`<div class="fg"><span class="fgl">Scaffold</span><span class="badge muted">${esc(data.scaffold)}</span></div>`;
+  if(data.errors&&data.errors.length)chips+=`<div class="fg"><span class="badge err">${esc(data.errors.join(' · '))}</span></div>`;
+  const hasD=(data.sql_log&&data.sql_log.length)||(data.citations&&data.citations.length);let detail='';
+  if(hasD){
+    if(data.sql_log&&data.sql_log.length)detail+=`<div><div class="dl">SQL · ${data.sql_log.length}</div><pre class="sql">${esc(data.sql_log.join('\n\n'))}</pre></div>`;
+    if(data.citations&&data.citations.length){const s=[...new Set(data.citations.map(c=>c.source))];detail+=`<div><div class="dl">Sources</div><div class="sources">${s.map(x=>`<span class="s">${esc(x)}</span>`).join(' · ')}</div></div>`;}
+  }
+  wrap.innerHTML=`<div class="rh"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>How this was answered</span>
+    ${hasD?'<button class="rtoggle" type="button">Details<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>':''}</div>
+    <div class="rbody">${chips}</div>${hasD?`<div class="rdetail">${detail}</div>`:''}`;
+  if(hasD){const t=wrap.querySelector('.rtoggle'),d=wrap.querySelector('.rdetail');t.addEventListener('click',()=>{d.classList.toggle('show');t.classList.toggle('open');});}
+  return wrap;
+}
+function tableEl(spec){const t=document.createElement('table');t.className='grid';
+  const head='<tr>'+spec.columns.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr>';
+  const rows=(spec.rows||[]).slice(0,100).map(r=>'<tr>'+spec.columns.map(c=>`<td>${esc(r[c]??'')}</td>`).join('')+'</tr>').join('');
+  t.innerHTML=head+rows;return t;}
+function scrollEnd(){const s=document.querySelector('.scroll');s.scrollTop=s.scrollHeight;}
+
+upBtn.addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change',async()=>{const f=fileInput.files[0];if(!f)return;
+  upNote.className='upnote';upNote.textContent='Uploading '+f.name+'…';const fd=new FormData();fd.append('file',f);
+  try{const d=await(await fetch('/upload',{method:'POST',headers:authHeaders(),body:fd})).json();
+    if(d.ok){upNote.className='upnote ok';upNote.textContent='✓ '+(d.message||'Added');loadTables();}
+    else{upNote.className='upnote err';upNote.textContent='✗ '+(d.error||'Upload failed');}
+  }catch(e){upNote.className='upnote err';upNote.textContent='✗ Upload failed';}
+  fileInput.value='';setTimeout(()=>{upNote.textContent='';upNote.className='upnote';},7000);
+});
+
+// --- inference settings drawer (runtime + sampling params, live) ---
+const drawer=$('drawer'),scrim=$('scrim'),cfgBody=$('cfgBody');
+let cfgMeta=[],cfgLoaded=false;const cfgTimers={};
+function openCfg(){drawer.classList.add('open');scrim.classList.add('open');drawer.setAttribute('aria-hidden','false');if(!cfgLoaded)loadCfg();}
+function closeCfg(){drawer.classList.remove('open');scrim.classList.remove('open');drawer.setAttribute('aria-hidden','true');}
+$('cfgBtn').addEventListener('click',openCfg);$('cfgClose').addEventListener('click',closeCfg);scrim.addEventListener('click',closeCfg);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drawer.classList.contains('open'))closeCfg();});
+async function loadRuntime(){try{const r=await(await fetch('/runtime')).json();
+  $('rtName').textContent=r.label||r.name;$('rtUrl').textContent=r.base_url||'';$('rtNote').textContent=r.notes||'';
+  $('rtTag').textContent=r.managed?'demo':(r.name==='analytiq'?'on-prem':'external');
+  const rb=$('runtimeBadge');if(rb)rb.innerHTML='<span class="dot"></span> '+(r.name||'runtime');
+}catch(e){const rb=$('runtimeBadge');if(rb)rb.style.display='none';}}
+async function loadCfg(){
+  await loadRuntime();
+  try{const d=await(await fetch('/settings/inference')).json();cfgMeta=d.meta||[];renderCfg(d.values||{});cfgLoaded=true;}
+  catch(e){cfgBody.innerHTML='<p class="help" style="padding:18px 0">Settings unavailable.</p>';}
+}
+function renderCfg(vals){
+  cfgBody.innerHTML='';
+  cfgMeta.forEach(m=>{
+    const v=vals[m.key];const row=document.createElement('div');row.className='param';
+    let ctrl;
+    if(m.type==='slider')ctrl=`<input type="range" data-k="${m.key}" min="${m.min}" max="${m.max}" step="${m.step}" value="${v}">`;
+    else if(m.type==='number')ctrl=`<input type="number" data-k="${m.key}" min="${m.min}" max="${m.max}" step="${m.step}" value="${v}">`;
+    else ctrl=`<input type="text" data-k="${m.key}" value="${esc(v||'')}" placeholder="(none)">`;
+    const disp=(m.type==='text')?'':`<span class="pv" id="pv_${m.key}">${v}</span>`;
+    row.innerHTML=`<div class="ph"><span class="pl">${esc(m.label)}</span>${disp}</div>${ctrl}<div class="help">${esc(m.help)}</div>`;
+    cfgBody.appendChild(row);
+  });
+  cfgBody.querySelectorAll('input').forEach(inp=>{
+    const ev=inp.type==='range'?'input':'change';
+    inp.addEventListener(ev,()=>{const k=inp.dataset.k,pv=$('pv_'+k);if(pv)pv.textContent=inp.value;saveCfg(k,inp);});
+  });
+}
+function saveCfg(key,inp){
+  clearTimeout(cfgTimers[key]);
+  cfgTimers[key]=setTimeout(async()=>{
+    const val=inp.type==='text'?inp.value:Number(inp.value);
+    try{const r=await fetch('/settings/inference',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({[key]:val})});
+      if(r.ok){const d=await r.json();const pv=$('pv_'+key);if(pv&&d.values&&d.values[key]!=null)pv.textContent=d.values[key];flashSaved();}
+    }catch(e){}
+  },380);
+}
+let savedT;function flashSaved(){const s=$('cfgSaved');s.classList.add('show');clearTimeout(savedT);savedT=setTimeout(()=>s.classList.remove('show'),1400);}
+$('cfgReset').addEventListener('click',async()=>{
+  const defs={};cfgMeta.forEach(m=>defs[m.key]=m.default);
+  try{const r=await fetch('/settings/inference',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify(defs)});
+    if(r.ok){const d=await r.json();renderCfg(d.values||{});flashSaved();}
+  }catch(e){}
+});
+// --- accounts: session, saved chats, credits ---------------------------------
+let ME=null,CURRENT_CONV=null;
+const cpSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const imSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+const slSVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>';
+
+async function initSession(){
+  try{
+    const r=await fetch('/auth/me');
+    if(!r.ok)throw 0;
+    ME=await r.json();
+    $('userSection').style.display='';$('chatsSection').style.display='';
+    $('uEmail').textContent=ME.email;$('uWorkspace').textContent=ME.workspace.name+(ME.workspace.dedicated_llm?' · dedicated model':'');
+    $('uPlan').textContent=ME.plan.label;
+    setCredits(ME.plan.credits_month-ME.plan.credits_used);
+    $('logoutBtn').addEventListener('click',async()=>{await fetch('/auth/logout',{method:'POST'});location.href='/login';});
+    loadChats();
+    renderProfile();
+    if(!document.getElementById('pfOpenBtn')){
+      const b=document.createElement('button');b.id='pfOpenBtn';b.className='btn full';b.style.marginTop='8px';
+      b.textContent='Profile & billing';b.addEventListener('click',openProfile);
+      $('userSection').appendChild(b);}
+  }catch(e){
+    try{const h=await(await fetch('/health')).json();
+      if(h.multi_tenant&&!document.getElementById('signinLink')){
+        const a=document.createElement('a');a.id='signinLink';a.className='btn full';a.href='/login';
+        a.style.marginTop='8px';a.textContent='Sign in / Register';authSection.appendChild(a);}
+    }catch(_){}
+  }
+}
+function setCredits(n){$('uCredits').textContent=(n==null)?'':('· '+Math.max(n,0)+' questions left');}
+function updateCredits(d){if(ME&&d&&d.credits_remaining!=null)setCredits(d.credits_remaining);}
+
+async function loadChats(){
+  if(!ME)return;
+  try{const d=await(await fetch('/chats')).json();const el=$('chatList');el.innerHTML='';
+    d.conversations.forEach(cv=>{const b=document.createElement('button');b.className='chatitem'+(cv.conv_id===CURRENT_CONV?' active':'');
+      b.textContent=cv.title||'New chat';b.title=cv.title;b.addEventListener('click',()=>openChat(cv.conv_id));el.appendChild(b);});
+  }catch(e){}
+}
+$('newChatBtn')&&$('newChatBtn').addEventListener('click',async()=>{
+  CURRENT_CONV=null;feed.querySelectorAll('.turn').forEach(t=>t.remove());welcome.style.display='';loadChats();qEl.focus();});
+async function openChat(cid){
+  if(busy)return;CURRENT_CONV=cid;
+  try{const d=await(await fetch('/chats/'+cid)).json();
+    feed.querySelectorAll('.turn').forEach(t=>t.remove());welcome.style.display='none';
+    let ab=null;
+    d.messages.forEach(m=>{
+      if(m.role==='user'){ab=newTurn(m.content);ab.dataset.q=m.content;}
+      else if(ab){render(ab,{answer:m.content,charts:m.charts||[]});ab=null;}
+    });
+    loadChats();scrollEnd();
+  }catch(e){}
+}
+
+// --- answer actions: copy text, chart PNG, add to deck ------------------------
+const SELECTED=[];
+function deckbar(){let el=$('deckbar');if(el)return el;
+  el=document.createElement('div');el.className='deckbar';el.id='deckbar';
+  el.innerHTML='<span id="deckN"></span><button id="deckGo">Build deck</button><button class="clr" id="deckClr">Clear</button>';
+  document.querySelector('.main').appendChild(el);
+  $('deckGo').addEventListener('click',buildSelectedDeck);
+  $('deckClr').addEventListener('click',()=>{SELECTED.length=0;document.querySelectorAll('.actbtn.sel').forEach(b=>{b.classList.remove('sel');b.querySelector('span').textContent='Add to deck';});syncDeckbar();});
+  return el;}
+function syncDeckbar(){const el=deckbar();$('deckN')&&($('deckN').textContent=SELECTED.length+' selected');el.classList.toggle('show',SELECTED.length>0);}
+
+function attachActions(ab,data){
+  const row=document.createElement('div');row.className='acts';
+  const mk=(html,fn)=>{const b=document.createElement('button');b.className='actbtn';b.innerHTML=html;b.addEventListener('click',fn);row.appendChild(b);return b;};
+  mk(cpSVG+'<span>Copy answer</span>',async b=>{
+    const t=(data.answer||'')+((data.sql_log&&data.sql_log.length)?'\n\n-- SQL --\n'+data.sql_log.join('\n'):'');
+    try{await navigator.clipboard.writeText(t);flashBtn(b,'Copied');}catch(e){flashBtn(b,'Copy failed');}});
+  (ab._charts||[]).forEach((c,i)=>{
+    if(!c.view)return;
+    mk(imSVG+'<span>Copy chart PNG</span>',async b=>{
+      try{const v=await c.view;if(!v)throw 0;const url=await v.toImageURL('png',2);const blob=await(await fetch(url)).blob();
+        await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);flashBtn(b,'Copied');}
+      catch(e){downloadChart(c,i);flashBtn(b,'Downloaded');}});
+    mk(imSVG+'<span>Download PNG</span>',()=>downloadChart(c,i));
+  });
+  const selBtn=mk(slSVG+'<span>Add to deck</span>',()=>{
+    const item={title:(ab.dataset.q||'Result').slice(0,80),answer:data.answer||'',
+      chart:(ab._charts&&ab._charts[0]&&!ab._charts[0].spec._kind)?ab._charts[0].spec:null,sql:data.sql_log||[]};
+    const ix=SELECTED.findIndex(s=>s._ab===ab);
+    if(ix>=0){SELECTED.splice(ix,1);selBtn.classList.remove('sel');selBtn.querySelector('span').textContent='Add to deck';}
+    else{item._ab=ab;SELECTED.push(item);selBtn.classList.add('sel');selBtn.querySelector('span').textContent='In deck ✓';}
+    syncDeckbar();});
+  mk('<span>📌 Pin to dashboard</span>',async b=>{
+    const sql=(data.sql_log&&data.sql_log.length)?data.sql_log[data.sql_log.length-1]:'';
+    const spec=(ab._charts&&ab._charts[0]&&!ab._charts[0].spec._kind)?ab._charts[0].spec:null;
+    if(!sql){flashBtn(b,'No SQL to pin');return;}
+    try{const r=await fetch('/dashboard/api/tiles',{method:'POST',headers:authHeaders({'content-type':'application/json'}),
+      body:JSON.stringify({title:(ab.dataset.q||'Tile').slice(0,100),question:ab.dataset.q||'',sql,spec})});
+      flashBtn(b,r.ok?'Pinned ✓':'Pin failed');}catch(e){flashBtn(b,'Pin failed');}});
+  ab.appendChild(row);
+}
+async function downloadChart(c,i){try{const v=await c.view;if(!v)return;const url=await v.toImageURL('png',2);
+  const a=document.createElement('a');a.href=url;a.download='analytiq-chart-'+(i+1)+'.png';a.click();}catch(e){}}
+function flashBtn(b,txt){const s=b.querySelector('span'),old=s.textContent;s.textContent=txt;setTimeout(()=>s.textContent=old,1400);}
+
+async function buildSelectedDeck(){
+  if(!SELECTED.length)return;const go=$('deckGo');go.disabled=true;go.textContent='Building…';
+  try{
+    const items=SELECTED.map(({_ab,...rest})=>rest);
+    const r=await fetch('/presentation/from_selection',{method:'POST',headers:authHeaders({'content-type':'application/json'}),
+      body:JSON.stringify({title:'Analytiq deck',items})});
+    if(r.status===402){go.textContent='No credits left';setTimeout(()=>{go.textContent='Build deck';go.disabled=false;},2200);return;}
+    if(r.status===403){go.textContent='Not in your plan';setTimeout(()=>{go.textContent='Build deck';go.disabled=false;},2200);return;}
+    if(!r.ok)throw 0;
+    const blob=await r.blob();const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='analytiq-deck.pptx';a.click();
+    go.textContent='Downloaded ✓';setTimeout(()=>{go.textContent='Build deck';go.disabled=false;},1800);
+  }catch(e){go.textContent='Failed — retry';go.disabled=false;}
+}
+initSession();
+loadRuntime();
+</script>
+</body>
+</html>

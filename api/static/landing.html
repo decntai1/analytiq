@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analytiq — Private analytics you can run yourself</title>
+<meta name="description" content="Ask your company data in plain English. Runs on your own infrastructure with open-source models, and shows the exact tables and SQL behind every answer.">
+<style>
+  /* self-hosted, air-gap safe — no external font calls */
+  @font-face{font-family:'InterVar';src:url('/static/fonts/inter-latin-var.woff2') format('woff2');
+    font-weight:100 900;font-style:normal;font-display:swap}
+  @font-face{font-family:'JBMono';src:url('/static/fonts/jetbrains-mono-latin-var.woff2') format('woff2');
+    font-weight:100 800;font-style:normal;font-display:swap}
+
+  :root{
+    --slate-900:#0A1419; --slate-850:#0F1C24; --slate-800:#16262F;
+    --paper:#FFFFFF; --canvas:#F4F7F7;
+    --ink:#0C1A20; --body:#3a525c; --muted:#6a818a;
+    --line-d:#1d2f37; --line-l:#e4ecec;
+    --teal:#2ad4c0; --teal-deep:#0c8c7e; --teal-press:#0a7669;
+    --on-dark:#e9f1f2; --on-dark-dim:#9bb2ba;
+    --glow:rgba(42,212,192,.16);
+    --sans:'InterVar',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:'JBMono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --r:14px; --r-sm:10px; --maxw:1140px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--body);font-family:var(--sans);
+    font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3{color:var(--ink);margin:0;letter-spacing:-.022em;line-height:1.08;font-weight:760}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+  .eyebrow{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--teal-deep)}
+  .on-dark .eyebrow{color:var(--teal)}
+
+  /* buttons */
+  .btn{display:inline-flex;align-items:center;gap:9px;font-family:var(--sans);font-weight:600;
+    font-size:15.5px;padding:13px 20px;border-radius:11px;cursor:pointer;border:1px solid transparent;
+    transition:transform .14s,background .14s,border-color .14s,box-shadow .14s;white-space:nowrap}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--teal-deep);color:#fff;box-shadow:0 1px 2px rgba(10,118,105,.25)}
+  .btn-primary:hover{background:var(--teal-press)}
+  .on-dark .btn-primary{background:var(--teal);color:#04221e;box-shadow:0 6px 22px var(--glow)}
+  .on-dark .btn-primary:hover{filter:brightness(1.06)}
+  .btn-ghost{background:transparent;color:var(--ink);border-color:var(--line-l)}
+  .btn-ghost:hover{border-color:#c9d6d6;background:#fafcfc}
+  .on-dark .btn-ghost{color:var(--on-dark);border-color:var(--line-d)}
+  .on-dark .btn-ghost:hover{border-color:#2c4651;background:rgba(255,255,255,.03)}
+  .btn svg{width:17px;height:17px}
+
+  /* nav */
+  header.nav{position:sticky;top:0;z-index:40;background:rgba(10,20,25,.82);
+    backdrop-filter:saturate(140%) blur(12px);border-bottom:1px solid var(--line-d)}
+  .nav .wrap{display:flex;align-items:center;gap:26px;height:66px}
+  .brand{display:flex;align-items:center;gap:11px;color:var(--on-dark);font-weight:740;font-size:19px;letter-spacing:-.02em}
+  .brand .logo{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+    background:linear-gradient(150deg,var(--teal),#1f9e92);box-shadow:0 4px 16px var(--glow)}
+  .brand .logo svg{width:17px;height:17px}
+  .brand b{color:var(--teal)}
+  .nav nav{display:flex;gap:24px;margin-left:14px}
+  .nav nav a{color:var(--on-dark-dim);font-size:15px;font-weight:500}
+  .nav nav a:hover{color:var(--on-dark)}
+  .nav .sp{flex:1}
+  .nav .menu-btn{display:none}
+
+  /* hero */
+  .hero{background:
+      radial-gradient(900px 420px at 78% -8%,rgba(42,212,192,.10),transparent 60%),
+      var(--slate-900);
+    border-bottom:1px solid var(--line-d);overflow:hidden}
+  .hero .wrap{display:grid;grid-template-columns:1.04fr .96fr;gap:54px;align-items:center;
+    padding-top:84px;padding-bottom:88px}
+  .hero h1{color:#fff;font-size:53px;margin:18px 0 0;font-weight:780}
+  .hero h1 .em{color:var(--teal)}
+  .hero .sub{color:var(--on-dark-dim);font-size:19px;max-width:33ch;margin:20px 0 0}
+  .hero .cta{display:flex;gap:13px;margin-top:30px;flex-wrap:wrap}
+  .hero .reassure{margin-top:22px;font-family:var(--mono);font-size:12.5px;color:#74909a;letter-spacing:.01em}
+  .hero .reassure b{color:var(--teal)}
+
+  /* hero product mock — the signature: an answer that carries its receipts */
+  .mock{background:#0d1a22;border:1px solid #20353f;border-radius:16px;
+    box-shadow:0 30px 70px rgba(0,0,0,.5);overflow:hidden}
+  .mock .bar{display:flex;align-items:center;gap:8px;padding:11px 15px;border-bottom:1px solid #1b2f38;
+    font-family:var(--mono);font-size:12px;color:#7b97a1}
+  .mock .bar .d{width:9px;height:9px;border-radius:50%;background:#2c454f}
+  .mock .bar .d.on{background:var(--teal)}
+  .mock .bar .ttl{margin-left:4px}
+  .mock .body{padding:17px 18px 20px}
+  .mock .q{display:inline-block;background:#15252e;border:1px solid #253c46;border-radius:9px;
+    padding:8px 13px;color:#dfeaed;font-size:14.5px}
+  .mock .chart{display:flex;align-items:flex-end;gap:12px;height:122px;margin:18px 2px 6px;
+    padding-bottom:22px;border-bottom:1px solid #1b2f38}
+  .mock .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end}
+  .mock .col i{width:100%;max-width:38px;border-radius:5px 5px 0 0;
+    background:linear-gradient(180deg,var(--teal),#179c8f);display:block}
+  .mock .col span{font-family:var(--mono);font-size:10.5px;color:#6f8b95}
+  .mock .ans{color:#c6d6da;font-size:13.5px;margin:14px 2px 0;line-height:1.5}
+  .mock .ans b{color:#fff;font-weight:600}
+  .receipts{margin:16px 2px 0;padding:13px 14px;background:#0a151b;border:1px solid #1d323b;border-radius:11px}
+  .receipts .rrow{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .receipts .rlab{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.12em;
+    text-transform:uppercase;color:#6f8b95}
+  .pill{font-family:var(--mono);font-size:12px;color:var(--teal);background:rgba(42,212,192,.1);
+    border:1px solid rgba(42,212,192,.22);border-radius:7px;padding:3px 9px;display:inline-flex;gap:6px;align-items:center}
+  .pill svg{width:11px;height:11px;opacity:.8}
+  .receipts .sql{font-family:var(--mono);font-size:11.5px;color:#9fb6be;margin-top:9px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .receipts .sql .kw{color:var(--teal)}
+
+  /* section scaffold */
+  .band{padding:84px 0}
+  .band-light{background:var(--paper)}
+  .band-canvas{background:var(--canvas)}
+  .band-dark{background:var(--slate-850);color:var(--on-dark);border-top:1px solid var(--line-d);border-bottom:1px solid var(--line-d)}
+  .band-dark h2,.band-dark h3{color:#fff}
+  .sec-head{max-width:62ch}
+  .sec-head h2{font-size:38px;margin:14px 0 0}
+  .sec-head p{font-size:18.5px;margin:16px 0 0;color:var(--muted)}
+  .band-dark .sec-head p{color:var(--on-dark-dim)}
+
+  /* value cards */
+  .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:46px}
+  .card{background:var(--paper);border:1px solid var(--line-l);border-radius:var(--r);padding:26px 24px;
+    transition:transform .16s,box-shadow .16s,border-color .16s}
+  .band-canvas .card{background:#fff}
+  .card:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(12,26,32,.07);border-color:#d4e2e2}
+  .card .ic{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;margin-bottom:16px;
+    background:rgba(12,140,126,.1);color:var(--teal-deep)}
+  .card .ic svg{width:21px;height:21px}
+  .card h3{font-size:20.5px}
+  .card p{margin:9px 0 0;font-size:16px;color:var(--body)}
+  .card .def{font-family:var(--mono);font-size:13px;color:var(--teal-deep);background:#eef8f6;
+    border-radius:7px;padding:7px 10px;margin-top:13px;display:inline-block}
+
+  /* how it works — a real sequence, so numbered steps are earned */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:50px}
+  .step .n{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--teal);
+    letter-spacing:.08em;border:1px solid var(--line-d);border-radius:8px;padding:5px 11px;display:inline-block}
+  .step h3{font-size:20px;margin:18px 0 0}
+  .step p{margin:9px 0 0;font-size:15.5px;color:var(--on-dark-dim)}
+  .step .quote{font-family:var(--mono);font-size:13px;color:var(--teal);margin-top:12px;
+    background:rgba(42,212,192,.07);border-left:2px solid var(--teal);padding:8px 12px;border-radius:0 7px 7px 0}
+
+  /* compare */
+  .cmp{margin-top:46px;border:1px solid var(--line-l);border-radius:var(--r);overflow:hidden;background:#fff}
+  .cmp .crow{display:grid;grid-template-columns:1.2fr 1fr 1fr}
+  .cmp .crow+.crow{border-top:1px solid var(--line-l)}
+  .cmp .cc{padding:16px 20px;font-size:15.5px}
+  .cmp .crow.head .cc{font-weight:700;color:var(--ink);background:var(--canvas);font-size:15px}
+  .cmp .crow.head .cc.aq{color:var(--teal-deep)}
+  .cmp .cc.feat{color:var(--muted);font-weight:500}
+  .cmp .cc.aq{font-weight:600;color:var(--ink)}
+  .cmp .yes{color:var(--teal-deep);font-weight:700}
+  .cmp .no{color:#b0bec4}
+
+  /* deploy */
+  .deploys{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:48px}
+  .dep{background:#0c1a22;border:1px solid var(--line-d);border-radius:var(--r);padding:28px 26px}
+  .dep.hl{border-color:rgba(42,212,192,.4);box-shadow:0 0 0 1px rgba(42,212,192,.18),0 24px 60px rgba(0,0,0,.35)}
+  .dep .tag{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal)}
+  .dep h3{font-size:23px;margin:8px 0 0;color:#fff}
+  .dep ul{list-style:none;padding:0;margin:18px 0 0}
+  .dep li{display:flex;gap:11px;align-items:flex-start;padding:8px 0;color:var(--on-dark-dim);font-size:15.5px}
+  .dep li svg{width:18px;height:18px;color:var(--teal);flex:none;margin-top:2px}
+
+
+  /* pricing */
+  .pricing{padding:72px 0}
+  .pricing .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:34px}
+  .price-card{background:#fff;border:1px solid var(--line,#e6eceb);border-radius:14px;padding:22px 20px;display:flex;flex-direction:column}
+  .price-card.hot{border-color:var(--teal,#0c8c7e);box-shadow:0 10px 34px rgba(12,140,126,.13)}
+  .price-card h3{font-size:17px;margin:0}
+  .price-card .amount{font-size:34px;font-weight:740;margin:10px 0 0}.price-card .per{font-size:12.5px;color:#7b8a88}
+  .price-card p{font-size:13.5px;color:#5b6b70;margin:12px 0 14px;flex:1}
+  .price-card ul{margin:0 0 18px;padding-left:18px;font-size:13px;color:#3a525c}.price-card li{margin:4px 0}
+  .price-card .go{display:inline-block;text-align:center;border:1px solid var(--teal,#0c8c7e);border-radius:9px;padding:9px 14px;font-weight:640;font-size:13.5px;text-decoration:none;color:var(--teal,#0c8c7e)}
+  .price-card.hot .go{background:var(--teal,#0c8c7e);color:#fff}
+  /* cta */
+  .cta-band{background:radial-gradient(800px 360px at 50% 120%,rgba(42,212,192,.12),transparent 60%),var(--slate-900);
+    text-align:center;padding:96px 0}
+  .cta-band h2{font-size:40px;color:#fff}
+  .cta-band p{color:var(--on-dark-dim);font-size:19px;margin:16px auto 0;max-width:52ch}
+  .cta-band .cta{display:flex;gap:13px;justify-content:center;margin-top:30px;flex-wrap:wrap}
+
+  /* footer */
+  footer.ft{background:var(--slate-900);border-top:1px solid var(--line-d);padding:34px 0}
+  .ft .wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .ft .brand{font-size:17px}
+  .ft .sp{flex:1}
+  .ft a{color:var(--on-dark-dim);font-size:14.5px}
+  .ft a:hover{color:var(--on-dark)}
+  .ft .fine{font-family:var(--mono);font-size:12px;color:#5d7882;width:100%;margin-top:6px}
+
+  /* reveal */
+  .rv{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+  .rv.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+  /* responsive */
+  @media (max-width:900px){
+    .hero .wrap{grid-template-columns:1fr;gap:40px;padding-top:56px;padding-bottom:64px}
+    .hero h1{font-size:42px}
+    .cards,.steps,.deploys{grid-template-columns:1fr}
+    .nav nav{display:none}
+    .nav nav.open{display:flex;position:absolute;top:66px;left:0;right:0;flex-direction:column;
+      background:var(--slate-900);border-bottom:1px solid var(--line-d);padding:14px 28px;gap:14px}
+    .nav .menu-btn{display:inline-flex;background:transparent;border:1px solid var(--line-d);
+      color:var(--on-dark);border-radius:9px;padding:8px 11px;cursor:pointer}
+    .cmp .crow{grid-template-columns:1.3fr .85fr .85fr}
+    .cmp .cc{padding:13px 13px;font-size:13.5px}
+    .band{padding:60px 0}
+  }
+</style>
+</head>
+<body>
+<header class="nav on-dark">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#04221e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M10 19V5M16 19v-6M22 19H2"/></svg></span>analyt<b>iq</b></a>
+    <nav id="navlinks">
+      <a href="#why">Why Analytiq</a>
+      <a href="#how">How it works</a>
+      <a href="#compare">Compare</a>
+      <a href="#deploy">Deployment</a>
+    </nav>
+    <span class="sp"></span>
+    <a class="btn btn-ghost" href="/app">Try the demo</a>
+    <a class="btn btn-ghost" href="/login">Sign in</a>
+    <a class="btn btn-primary" href="/login#register">Create account</a>
+    <button class="menu-btn" id="menuBtn" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero on-dark">
+  <div class="wrap">
+    <div class="rv in">
+      <span class="eyebrow">Private analytics, run by you</span>
+      <h1>Ask your company data.<br>Get answers you can <span class="em">defend</span>.</h1>
+      <p class="sub">Plain-English questions become charts and explanations — each one carrying the exact tables and SQL behind it. Runs on your own infrastructure with open-source models, so your data never leaves the building.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="/app">Open the app
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn-ghost" href="#how">How it works</a>
+      </div>
+      <div class="reassure">No data sent to third-party AI clouds · Connects to your <b>database</b>, <b>files</b>, or <b>documents</b></div>
+    </div>
+
+    <div class="mock rv in" aria-hidden="true">
+      <div class="bar"><span class="d on"></span><span class="d"></span><span class="d"></span><span class="ttl">analytiq · finance workspace</span></div>
+      <div class="body">
+        <span class="q">Net revenue by quarter for 2024?</span>
+        <div class="chart">
+          <div class="col"><i style="height:46%"></i><span>Q1</span></div>
+          <div class="col"><i style="height:63%"></i><span>Q2</span></div>
+          <div class="col"><i style="height:55%"></i><span>Q3</span></div>
+          <div class="col"><i style="height:88%"></i><span>Q4</span></div>
+        </div>
+        <div class="ans">Net revenue rose to <b>$1.84M</b> in Q4 — gross sales of $1.99M less $151K in returns.</div>
+        <div class="receipts">
+          <div class="rrow">
+            <span class="rlab">Tables used</span>
+            <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>sales</span>
+            <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>returns</span>
+          </div>
+          <div class="sql"><span class="kw">SELECT</span> quarter, SUM(revenue)-SUM(returns) <span class="kw">FROM</span> sales …</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY -->
+<section class="band band-canvas" id="why">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">Why Analytiq</span>
+      <h2>What the upload-a-CSV tools can't do</h2>
+      <p>Most AI dashboard tools are cloud apps you paste a spreadsheet into. Analytiq is built for companies that need their data to stay private, their answers to be verifiable, and their live systems connected.</p>
+    </div>
+    <div class="cards">
+      <div class="card rv">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M7 20h10M9 16v4M15 16v4"/></svg></div>
+        <h3>Runs on your own infrastructure</h3>
+        <p>Cloud, your private cloud, or fully air-gapped on-prem — with open-source models on your hardware. Sensitive data never leaves your network.</p>
+      </div>
+      <div class="card rv">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        <h3>Shows its work</h3>
+        <p>Every answer carries the tables it used, the exact SQL it ran, and a flag when retrieval is uncertain. Auditable by design — no black-box “insights.”</p>
+      </div>
+      <div class="card rv">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></div>
+        <h3>Connects to your live database</h3>
+        <p>Read-only connections to Postgres, MySQL, SQL Server, and warehouses — answers reflect today's data, not a stale export. Files and documents too.</p>
+      </div>
+      <div class="card rv">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l7-5 7 5M5 8v8l7 5 7-5V8"/></svg></div>
+        <h3>Speaks your business</h3>
+        <p>Define your metrics once and every answer uses your definitions, not a generic guess at a spreadsheet.</p>
+        <span class="def">net_revenue = sales − returns</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section class="band band-dark on-dark" id="how">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">How it works</span>
+      <h2>From a question to a verified answer</h2>
+      <p>Three steps. Every answer comes back with the receipts to check it.</p>
+    </div>
+    <div class="steps">
+      <div class="step rv">
+        <span class="n">01 · Connect</span>
+        <h3>Connect your data</h3>
+        <p>Point Analytiq at your database with a read-only role, drop in files, or upload a spreadsheet. It reads the schema automatically.</p>
+      </div>
+      <div class="step rv">
+        <span class="n">02 · Ask</span>
+        <h3>Ask in plain English</h3>
+        <p>Analytiq retrieves the relevant tables, writes the SQL, and pulls in supporting documents for the “why.”</p>
+        <div class="quote">“Show net revenue by quarter and explain the dip.”</div>
+      </div>
+      <div class="step rv">
+        <span class="n">03 · Verify</span>
+        <h3>Get an answer that proves itself</h3>
+        <p>A chart, a written explanation, and the receipts — the tables and SQL used, plus a confidence flag — so you can trust it or check it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARE -->
+<section class="band band-light" id="compare">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">Compare</span>
+      <h2>Analytiq vs. the AI dashboard generators</h2>
+      <p>The prompt-to-chart experience is everywhere now. The difference is what happens to your data and whether you can trust the answer.</p>
+    </div>
+    <div class="cmp rv">
+      <div class="crow head"><div class="cc feat">&nbsp;</div><div class="cc aq">Analytiq</div><div class="cc">Cloud chart generators</div></div>
+      <div class="crow"><div class="cc feat">Where your data goes</div><div class="cc aq">Stays on your infrastructure</div><div class="cc">Uploaded to a third-party cloud</div></div>
+      <div class="crow"><div class="cc feat">Shows the SQL behind each number</div><div class="cc aq"><span class="yes">Yes</span></div><div class="cc"><span class="no">No</span></div></div>
+      <div class="crow"><div class="cc feat">Runs fully air-gapped</div><div class="cc aq"><span class="yes">Yes</span></div><div class="cc"><span class="no">No</span></div></div>
+      <div class="crow"><div class="cc feat">Connects to your live database</div><div class="cc aq"><span class="yes">Read-only</span></div><div class="cc">Mostly file uploads</div></div>
+      <div class="crow"><div class="cc feat">Uses your own metric definitions</div><div class="cc aq"><span class="yes">Yes</span></div><div class="cc"><span class="no">Generic</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- DEPLOY -->
+<section class="band band-dark on-dark" id="deploy">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">Deployment</span>
+      <h2>Your data, your rules</h2>
+      <p>One product, two ways to run it. Choose based on how your data has to be handled — not on what a vendor will allow.</p>
+    </div>
+    <div class="deploys">
+      <div class="dep rv">
+        <span class="tag">Cloud</span>
+        <h3>Up in minutes, managed for you</h3>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Per-customer isolation and access keys</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Connect a database or upload files</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Best for teams without a compliance constraint</li>
+        </ul>
+      </div>
+      <div class="dep hl rv">
+        <span class="tag">On-premise</span>
+        <h3>Your hardware, fully air-gapped</h3>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Open-source model runs on your hardware</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Works fully air-gapped — no internet required</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Connect directly to your internal database</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Built for regulated and data-sovereign teams</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+
+<section class="pricing" id="pricing">
+  <div class="wrap">
+    <h2 style="text-align:center">Simple tiers, honest limits</h2>
+    <p style="text-align:center;color:#5b6b70;max-width:56ch;margin:12px auto 0">A question costs one credit, a deck export ten. Every tier gets the same safety rails — read-only SQL, validated charts, full trace. You pay for capacity and privacy, never for safety.</p>
+    <div class="grid4">
+      <div class="price-card"><h3>Explore</h3><div class="amount">€0</div><div class="per">forever</div>
+        <p>Try it on your own files. No card, no trial clock.</p>
+        <ul><li>15 questions / month</li><li>CSV, Excel &amp; PDF upload</li><li>Charts + full SQL trace</li></ul>
+        <a class="go" href="/login">Start free</a></div>
+      <div class="price-card hot"><h3>Analyst</h3><div class="amount">€29</div><div class="per">per user / month</div>
+        <p>For the person who answers everyone's data questions.</p>
+        <ul><li>300 credits / month</li><li>Session memory</li><li>One-click PPTX decks</li><li>Dashboards &amp; workbench</li></ul>
+        <a class="go" href="/login">Get Analyst</a></div>
+      <div class="price-card"><h3>Team</h3><div class="amount">€940</div><div class="per">per month · up to 10 users</div>
+        <p>Your team on a dedicated private model endpoint.</p>
+        <ul><li>3000 pooled credits</li><li>Dedicated LLM endpoint</li><li>100&nbsp;MB uploads</li><li>Priority support</li></ul>
+        <a class="go" href="/login">Start Team</a></div>
+      <div class="price-card"><h3>Business</h3><div class="amount">€2,400</div><div class="per">per month · billed annually · up to 25 users</div>
+        <p>Company-wide, governed, private.</p>
+        <ul><li>Everything in Team</li><li>Editable metric glossary + audit export</li><li>Onboarding sizing report</li><li>Response-time SLA</li></ul>
+        <a class="go" href="mailto:hello@analytiq.app?subject=Analytiq%20Business">Talk to us</a></div>
+      <div class="price-card"><h3>On-prem</h3><div class="amount">from €9,600</div><div class="per">per node / year</div>
+        <p>Your hardware, your models. Data never leaves the building.</p>
+        <ul><li>Air-gap supported</li><li>Open-source LLMs</li><li>Implementation &amp; SLA</li></ul>
+        <a class="go" href="mailto:hello@analytiq.app?subject=On-prem%20Analytiq">Talk to us</a></div>
+    </div>
+  </div>
+</section>
+<section class="cta-band on-dark">
+  <div class="wrap rv">
+    <h2>See it answer your own question</h2>
+    <p>Open the app, point it at sample data or your own, and watch it show the SQL behind every answer.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="/app">Open the app
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<footer class="ft on-dark">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#04221e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M10 19V5M16 19v-6M22 19H2"/></svg></span>analyt<b>iq</b></a>
+    <span class="sp"></span>
+    <a href="#why">Why</a><a href="#how">How it works</a><a href="#compare">Compare</a><a href="/app">Open app</a>
+    <div class="fine">Private, on-premise analytics · answers that carry their receipts</div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('menuBtn').addEventListener('click',()=>document.getElementById('navlinks').classList.toggle('open'));
+  document.querySelectorAll('#navlinks a').forEach(a=>a.addEventListener('click',()=>document.getElementById('navlinks').classList.remove('open')));
+  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+  document.querySelectorAll('.rv:not(.in)').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

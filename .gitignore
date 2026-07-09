@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtualenv (5+ GB with torch — never commit)
+.venv/
+venv/
+env/
+
+# Secrets / env — keep only the *.example templates
+.env
+.env.*
+!.env.*.example
+
+# Databases & runtime state
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+data/
+uploads/
+documents/
+tenants/
+index/vectorstore/
+eval_results.json
+
+# Logs & temp
+*.log
+.piptmp/
+
+# Claude Code session/memory artifacts
+.claude/
+
+# OS
+.DS_Store

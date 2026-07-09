@@ -1,0 +1,60 @@
+# Production on-prem with YOUR runtime (the DEcntAI-derived text-gen runtime) instead
+# of Ollama. The runtime runs ON THE CUSTOMER'S hardware — data never leaves their box.
+#
+# Two ways to wire your runtime:
+#   (A) as a service in this compose (uncomment + set image), OR
+#   (B) running separately on the host/LAN; just point ANALYTIQ_RUNTIME_URL at it.
+#
+#   cp .env.prod-onprem.example .env
+#   set LLM_RUNTIME=analytiq and ANALYTIQ_RUNTIME_URL in .env
+#   docker compose -f docker-compose.prod-onprem-runtime.yml up -d --build
+services:
+  caddy:
+    image: caddy:2
+    ports: ["443:443","80:80"]
+    environment: { DOMAIN: "${DOMAIN}" }
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+    restart: unless-stopped
+
+  # --- (A) YOUR runtime as a service (uncomment and set your image) -----------
+  # analytiq-runtime:
+  #   image: your-registry/analytiq-runtime:latest    # your DEcntAI-derived runtime
+  #   environment:
+  #     MODEL: qwen2.5-14b                              # whatever this box should serve
+  #     # ...your runtime's own config (quantization, VRAM, batching, etc.)
+  #   ports: ["8000:8000"]                             # exposes OpenAI-compatible /v1
+  #   restart: unless-stopped
+  #   deploy:                                          # GPU passthrough
+  #     resources:
+  #       reservations:
+  #         devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args: { INSTALL_LOCAL_EMBEDDINGS: "1" }
+    image: analytiq:onprem
+    env_file: .env
+    environment:
+      DEPLOY_MODE: onprem
+      MULTI_TENANT: "0"
+      EMBEDDING_MODE: local
+      LLM_RUNTIME: analytiq
+      # (B) point at your runtime — a sibling service above, or a host/LAN address:
+      ANALYTIQ_RUNTIME_URL: "${ANALYTIQ_RUNTIME_URL:-http://analytiq-runtime:8000/v1}"
+    expose: ["8000"]
+    # depends_on: [analytiq-runtime]   # uncomment if using option (A)
+    volumes:
+      - analytiq_data:/data
+      # - /path/to/customer/data:/data/files:ro
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  analytiq_data:

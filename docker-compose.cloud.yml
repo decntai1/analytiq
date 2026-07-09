@@ -1,0 +1,20 @@
+# Cloud / SaaS deployment — app only; LLM + embeddings via hosted APIs.
+# Use for: the VPS demo and the multi-tenant SaaS.
+#   cp .env.cloud.example .env  &&  edit keys  &&  docker compose -f docker-compose.cloud.yml up -d --build
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: analytiq:latest
+    env_file: .env
+    environment:
+      DEPLOY_MODE: cloud
+    ports:
+      - "8000:8000"
+    volumes:
+      - analytiq_data:/data           # uploads, documents, files persist on the VPS
+    restart: unless-stopped
+
+volumes:
+  analytiq_data:

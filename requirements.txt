@@ -1,0 +1,29 @@
+# core
+openai>=1.40            # OpenAI-compatible adapter (OpenAI, Grok, Ollama, vLLM, ...)
+anthropic>=0.40         # Claude native adapter
+sqlalchemy>=2.0         # SQL connector (Postgres, MySQL, SQL Server, SQLite, warehouses)
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.0
+python-multipart>=0.0.9 # file uploads
+
+# presentations / export
+python-pptx>=1.0       # editable PPTX generation
+vl-convert-python>=1.0 # render charts to PNG for decks/export (deterministic)
+
+# connectors
+duckdb>=1.0             # files / CSV / Parquet connector + uploads
+pypdf>=4.0            # PDF ingestion for document-RAG
+openpyxl==3.1.5        # .xlsx uploads
+pandas==3.0.3          # load-bearing: workbench DuckDB .df(), profiling, .xlsx uploads. Pinned to batteries-green version — pandas 3.x has breaking changes; do not float.
+
+# billing
+stripe==15.3.0         # checkout + portal + webhook signature verification. Pinned to batteries-green version.
+
+# embeddings (on-prem). Cloud uses the openai package above.
+sentence-transformers>=3.0   # local embeddings; omit if using OpenAI embeddings only
+
+# DB drivers as needed:
+# psycopg2-binary       # Postgres
+# pymysql               # MySQL/MariaDB
+# pyodbc                # SQL Server

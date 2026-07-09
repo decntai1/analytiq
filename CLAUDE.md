@@ -1,0 +1,115 @@
+# CLAUDE.md — Analytiq FULL PLATFORM (accounts lineage, r5)
+
+You are working on the **full Analytiq platform tree**: the multi-tenant SaaS
+build with accounts, tiers, credits, billing, chats, decks, workbench, and
+dashboards. This is NOT the tree running on the current VPS demo — see
+"Two lineages" below before assuming anything about production.
+
+Analytiq: PhD thesis prototype + product. Prompt-based data analysis &
+visualization over structured (SQL/files) + unstructured (documents) company
+data, deployable fully on-prem with open-source LLMs. Pipeline: NL question →
+intent router → schema-RAG / doc-RAG → read-only SQL + doc retrieval →
+neutral chart spec → Vega-Lite. Thesis: deterministic scaffolding substitutes
+for model capability, measured (scaffold flags × model size → accuracy).
+
+## Two lineages — read this first
+- **VPS demo lineage** (`/opt/analytiq` on the demo box, analytiq.nomoad.net):
+  single-tenant, NO accounts. Grew its own features (upload ledger, multi-sheet
+  xlsx, table delete/verify, name-pin, list_tables, table-scope, data drawer).
+  It has its OWN CLAUDE.md. Do not port accounts there or reconcile lineages
+  without explicit instruction from Tamás.
+- **THIS tree (full platform)**: everything the demo has architecturally, PLUS
+  accounts/sessions (scrypt), company invite codes, PLANS + question credits
+  (1/question, 10/deck) with 402 gating, plan-gated session memory, per-tenant
+  dedicated llm_base_url, chats sidebar, selection→PPTX decks, profile drawer
+  (top-right credits chip → email/plan/balance/tier-chooser/portal/password
+  change), Stripe billing (checkout + portal + signature-verified webhook as
+  the ONLY plan writer), landing page with the 5-tier pricing, workbench
+  module, dashboard module.
+
+## Tiers (settled pricing — don't invent numbers)
+Explore €0 (15 q/mo) · Analyst €29/user/mo (300 credits, self-serve checkout)
+· Team €940/mo up to 10 users, dedicated model (self-serve; PLANS key is
+`business`) · Business €2,400/mo billed annually, up to 25 users (contact
+sales, no checkout) · On-prem from €9,600/node/yr (contact). Rule: tiers
+differentiate on capacity, data boundary, and governance — NEVER on safety
+scaffolds. Every tier gets read-only SQL, validated charts, full trace.
+
+## Working discipline (non-negotiable)
+1. Recon read-only first; report spec-vs-code contradictions before editing.
+2. One concern per commit; commit as you go.
+3. Isolated acceptance (tempdir, zero prod writes) before restarts/deploys.
+4. Batteries are deploy gates with exit codes. This tree has FIVE:
+   scripts/cleanroom_battery.py (10 sections, full stack), workbench_battery
+   (41 checks), dashboard_battery, billing_battery (offline: real webhook
+   signatures, monkeypatched checkout), plus the stub eval grid
+   (python -m eval.score --stub) for the pipeline itself.
+5. Never claim untested capability. Static files need no restart; Python does.
+
+## Safety invariants — never regress
+Read-only SQL guard in both connectors (dashboards refresh inherits it);
+neutral chart-spec whitelist (never expose raw Vega-Lite; grow primitive by
+primitive); uploads/workbench/dashboards realpath-confined; workbench LLM has
+NO tools (whitelisted-ops plan → deterministic executor → logged recipe);
+sources immutable (sha256-checked); plan changes ONLY via the verified Stripe
+webhook; upload honesty (no success on 0-row ingestion).
+
+## Deploy (docker-compose + Caddy — this is what the tree ships; see DEPLOY.md)
+NOTE: an earlier CLAUDE.md described a bare-metal `deploy_vps.sh` /
+`analytiq.env.vps` / systemd+nginx+certbot runbook. That tooling was NEVER in
+this tree — it was a phantom from an advisory session. The real, checked-in
+deploy path is Docker. Do not recreate the bare-metal runbook.
+
+One image (`Dockerfile`, python:3.12-slim), four targets, all driven by `.env`.
+Entry point is `./setup.sh <target>` (writes `.env` from the matching template,
+then builds+starts); or drive compose directly. Prod SaaS:
+  cp .env.prod.example .env   # edit DOMAIN, ADMIN_TOKEN, keys (see below)
+  docker compose -f docker-compose.prod.yml up -d --build
+Targets (DEPLOY.md table): dev-cloud / dev-onprem / prod (Caddy TLS, MULTI,
+cloud LLM) / prod-onprem (Caddy TLS, single, local Ollama).
+
+TLS: **Caddy** (`deploy/Caddyfile`, image caddy:2) auto-provisions + renews
+Let's Encrypt from `DOMAIN` in `.env`. NO nginx, NO certbot. Caddy binds host
+80/443; app listens only on internal :8000 (not published). DNS A record for
+DOMAIN must resolve to the box before Caddy can issue the cert.
+
+State = **Docker named volumes**, NOT /opt/analytiq/state/: `analytiq_tenants`
+→ /app/tenants, `analytiq_data` → /data (so `ACCOUNTS_DB=/data/accounts.db`).
+Backups of BOTH volumes are mandatory once real users register.
+
+`.env.prod.example` is the template. Required keys: DEPLOY_MODE=cloud,
+MULTI_TENANT=1, DOMAIN, ADMIN_TOKEN, DEFAULT_MODEL, OPENAI_API_KEY,
+EMBEDDING_MODE=openai, CORS_ORIGINS, RATE_LIMIT_PER_MIN, MAX_UPLOAD_MB,
+DATA_SOURCE, ACCOUNTS_DB, COOKIE_SECURE=1. Billing: STRIPE_SECRET_KEY /
+STRIPE_WEBHOOK_SECRET / STRIPE_PUBLISHABLE_KEY, PUBLIC_URL, and THREE price IDs
+— STRIPE_PRICE_ANALYST / STRIPE_PRICE_TEAM / STRIPE_PRICE_BUSINESS (code reads
+all three: api/billing_routes.py PRICES). Webhook endpoint /billing/webhook
+must be registered in the Stripe dashboard.
+
+Prereqs / gotchas: Docker + compose engine must be installed on the host (not
+present by default on a fresh box). MEMORY: the cloud image should be
+torch-free — the Dockerfile installs sentence-transformers only under the
+`INSTALL_LOCAL_EMBEDDINGS=1` build arg, BUT requirements.txt currently lists
+sentence-transformers unconditionally, so `pip install -r requirements.txt`
+drags torch+CUDA (~5G) into every image. On a small (≤4G) box that build is a
+real OOM risk and pure dead weight for cloud prod (EMBEDDING_MODE=openai). Keep
+it out of the cloud image; it's only needed for on-prem local embeddings. If a
+pip step runs on a box where /tmp is a small tmpfs, point TMPDIR at the big
+disk first (a scrubbed `env -i` or Docker build layer resets it to /tmp).
+
+## Key map (this lineage; see PROJECT_codebase-map.md for the core pipeline)
+core/accounts.py (users/sessions/credits/conversations, change_password) ·
+api/routes_accounts.py (/auth/*, /chats) · api/billing_routes.py (/billing/*)
+· core/tenancy.py (Tenant + stripe_customer_id; auth.store() is THE shared
+singleton) · core/workbench.py + api/workbench_routes.py (+recipes) ·
+core/dashboards.py + api/dashboard_routes.py · api/static/: landing.html
+(5 tiers), login.html, index.html (chat + chips + drawers + pin), workbench.html,
+dashboard.html · config.py: MODEL_REGISTRY, scaffold flags, PLANS.
+
+## Standing items
+- The REAL EVAL RUN (models × scaffold levels over the gold set) is roadmap
+  item 1 and has never been executed. It gates product claims and pricing
+  promises. Flag once per session if still true.
+- Live-keys Stripe checkout has never run (offline container); first real
+  checkout is a launch-day verification step.
+- Keep this file updated in the same commit as any change to the facts above.
