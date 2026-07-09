@@ -52,7 +52,11 @@ neutral chart-spec whitelist (never expose raw Vega-Lite; grow primitive by
 primitive); uploads/workbench/dashboards realpath-confined; workbench LLM has
 NO tools (whitelisted-ops plan → deterministic executor → logged recipe);
 sources immutable (sha256-checked); plan changes ONLY via the verified Stripe
-webhook; upload honesty (no success on 0-row ingestion).
+webhook; upload honesty — CSV ingest must NEVER silently bulk-drop rows (no bare
+`ignore_errors`; messy/non-UTF-8 files get an encoding-transcode fallback that
+loads all rows and REPORTS any genuinely-skipped ones) and NEVER report success
+on 0-row ingestion (empty/header-only → honest failure). See
+connectors/duckdb_conn.py `_load_csv`; map coverage with scripts/ingest_suite.py.
 
 ## Deploy (docker-compose + Caddy — this is what the tree ships; see DEPLOY.md)
 NOTE: an earlier CLAUDE.md described a bare-metal `deploy_vps.sh` /
@@ -136,10 +140,44 @@ core/dashboards.py + api/dashboard_routes.py · api/static/: landing.html
 dashboard.html · config.py: MODEL_REGISTRY, scaffold flags, PLANS, PLAN_MODELS
 (per-tier model gating; /ask enforces server-side, /models filters by plan).
 
+## Live deploy state (as of the r5 launch session)
+LIVE at https://analytiq.dcentai.tech (Caddy TLS, MULTI, Ollama Cloud). Shipped +
+verified this session (see [[deploy-target]] memory):
+- Plan-gated model picker (config.PLAN_MODELS): 4 tool-verified Ollama-Cloud
+  models, Free=ministral-8b (cheapest, fixes the cost leak), paid=all 4. /models
+  filters by plan; /ask ENFORCES server-side (Free POSTing a paid model → 403
+  before credits are charged). verify_paid_models.py is ONE-TIME build-time
+  acceptance (uses ADMIN_TOKEN), NOT the recurring gate.
+- Upload visibility: /tables returns table_details (name/rows/columns) + documents
+  (files); document count is FILES not chunks; uploads announce table-vs-document
+  and flag doc Q&A limited while EMBEDDING_MODE=test.
+- Robust CSV ingest (shipped): encoding transcode fallback, CSVs report row counts,
+  honest skip reporting. 24-case scripts/ingest_suite.py green.
+
+## KNOWN ISSUE — copy overpromises (fix before it bites)
+The Team tier copy claims a "dedicated private model endpoint" but ALL tiers
+currently share the SAME Ollama Cloud endpoint — no dedicated endpoint is
+provisioned (the `llm_base_url` hook exists; the RunPod machinery does not). Do
+NOT promise dedicated infra in landing/pricing copy until provisioning is built.
+
+## Build queue (priority order)
+1. Workbench data-preview + nav links (no /workbench or /dashboard link from the
+   main UI yet) — show columns/types/sample rows so users clean what they can see.
+2. Colorful charts + numeric data labels (grow the neutral chart-spec whitelist
+   primitive-by-primitive — scatter/heatmap within the deterministic model, NEVER
+   Python execution).
+3. Table-scope checkbox (pick which tables a question queries).
+4. Dormant buy-credits/Stripe path — build 503'd until keys; activate in the one
+   Stripe pass (register /billing/webhook now the URL is live, add keys).
+
 ## Standing items
-- The REAL EVAL RUN (models × scaffold levels over the gold set) is roadmap
-  item 1 and has never been executed. It gates product claims and pricing
-  promises. Flag once per session if still true.
-- Live-keys Stripe checkout has never run (offline container); first real
-  checkout is a launch-day verification step.
+- Ollama Cloud is on a FREE/personal key — move to Pro before real traffic (quota
+  walls ~5M tok/wk, 120B burns it fast, no SLA).
+- The REAL EVAL RUN (models × scaffold levels over the gold set) has NEVER run —
+  roadmap item 1, the thesis result. The 8B→480B model ladder is now assembled +
+  tool-verified: it IS the eval's independent variable, waiting. Nothing new needs
+  building to run it. Flag once per session if still true.
+- model2vec port (torch-free semantic embeddings) = the fix for the weak test-mode
+  document arm — high value, "next session". See [[cloud-image-torch-free]].
+- Live-keys Stripe checkout has never run; first real checkout is a launch-day step.
 - Keep this file updated in the same commit as any change to the facts above.
