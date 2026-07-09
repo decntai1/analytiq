@@ -10,6 +10,22 @@ from __future__ import annotations
 _MARK = {"bar": "bar", "line": "line", "area": "area", "scatter": "point", "pie": "arc"}
 
 
+def _has_numeric(rows: list[dict], field: str | None) -> bool:
+    """True if `field` has at least one non-null numeric value (so a chart won't be empty)."""
+    if not field:
+        return True
+    for r in rows:
+        v = r.get(field)
+        if v is None:
+            continue
+        try:
+            float(v)
+            return True
+        except (TypeError, ValueError):
+            continue
+    return False
+
+
 def to_vegalite(spec: dict, rows: list[dict]) -> dict:
     ctype = spec["type"]
     enc = spec.get("encoding", {})
@@ -19,6 +35,15 @@ def to_vegalite(spec: dict, rows: list[dict]) -> dict:
         # tables aren't Vega-Lite; return a typed payload the UI renders as a grid
         return {"_kind": "table", "title": title, "columns": list(rows[0].keys()) if rows else [],
                 "rows": rows}
+
+    # empty / non-plottable fallback: no rows, or the measure column (y/value) has no
+    # numeric data (e.g. charting a text column) -> show the rows as a table, not an
+    # empty chart frame. Keeps the answer honest instead of rendering a blank plot.
+    measure = enc.get("y") or enc.get("value")
+    if not rows or not _has_numeric(rows, measure):
+        return {"_kind": "table",
+                "title": (f"{title} — no chartable data, showing rows".strip(" —")) or "No chartable data",
+                "columns": list(rows[0].keys()) if rows else [], "rows": rows}
 
     vl: dict = {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
