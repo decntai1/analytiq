@@ -45,26 +45,46 @@ def to_vegalite(spec: dict, rows: list[dict]) -> dict:
                 "title": (f"{title} — no chartable data, showing rows".strip(" —")) or "No chartable data",
                 "columns": list(rows[0].keys()) if rows else [], "rows": rows}
 
-    vl: dict = {
+    base = {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
         "title": title,
         "width": "container",
         "data": {"values": rows},
-        "mark": {"type": _MARK[ctype], "tooltip": True,
-                 **({"point": True} if ctype == "line" else {})},
-        "encoding": {},
     }
-    e = vl["encoding"]
     if ctype == "pie":
-        e["theta"] = {"field": enc["value"], "type": "quantitative"}
-        e["color"] = {"field": enc["category"], "type": "nominal"}
-        return vl
+        base["mark"] = {"type": "arc", "tooltip": True, "stroke": "#fff", "strokeWidth": 1}
+        base["encoding"] = {"theta": {"field": enc["value"], "type": "quantitative"},
+                            "color": {"field": enc["category"], "type": "nominal"}}
+        return base
 
-    e["x"] = {"field": enc["x"], "type": "temporal" if _looks_temporal(enc["x"], rows) else "nominal"}
-    e["y"] = {"field": enc["y"], "type": "quantitative"}
-    if "series" in enc:
-        e["color"] = {"field": enc["series"], "type": "nominal"}
-    return vl
+    temporal = _looks_temporal(enc["x"], rows)
+    x_enc = {"field": enc["x"], "type": "temporal" if temporal else "nominal"}
+    if not temporal:                       # rotate labels so many categories don't cram/overlap
+        x_enc["axis"] = {"labelAngle": -40, "labelLimit": 140}
+    y_enc = {"field": enc["y"], "type": "quantitative"}
+    series = enc.get("series")
+    enc_obj = {"x": x_enc, "y": y_enc}
+    if series:
+        enc_obj["color"] = {"field": series, "type": "nominal"}
+        if ctype == "bar":                 # grouped (side-by-side), not overlapping/stacked
+            enc_obj["xOffset"] = {"field": series, "type": "nominal"}
+    mark = {"type": _MARK[ctype], "tooltip": True,
+            **({"cornerRadiusEnd": 3} if ctype == "bar" else {}),
+            **({"point": True} if ctype == "line" else {})}
+
+    # selective direct value labels: only for a single series with few marks
+    # (the skill's rule — never a number on every point of a crowded chart).
+    if ctype in ("bar", "line") and not series and len(rows) <= 16:
+        base["layer"] = [
+            {"mark": mark, "encoding": enc_obj},
+            {"mark": {"type": "text", "dy": -7, "fontSize": 10, "color": "#3a525c"},
+             "encoding": {**enc_obj,
+                          "text": {"field": enc["y"], "type": "quantitative", "format": ".3~s"}}},
+        ]
+    else:
+        base["mark"] = mark
+        base["encoding"] = enc_obj
+    return base
 
 
 def _looks_temporal(field: str, rows: list[dict]) -> bool:
