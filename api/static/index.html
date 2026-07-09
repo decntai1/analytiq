@@ -343,6 +343,15 @@
 
 <div class="credchip" id="credChip" title="Profile, plan & billing"><span class="pl" id="chipPlan"></span><span class="cr" id="chipCred"></span></div>
 <div class="scrim" id="scrim"></div>
+<div id="previewModal" style="display:none;position:fixed;inset:0;background:rgba(12,26,32,.4);z-index:80;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--card,#fff);border-radius:12px;max-width:92vw;max-height:82vh;overflow:hidden;box-shadow:0 12px 44px rgba(0,0,0,.22);display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:11px 15px;border-bottom:1px solid var(--line,#e6eceb)">
+      <b id="previewTitle" style="font-size:13px"></b>
+      <button id="previewClose" style="background:none;border:none;font-size:17px;cursor:pointer;color:#6a818a">✕</button>
+    </div>
+    <div id="previewBody" style="padding:12px 15px"></div>
+  </div>
+</div>
 <aside class="drawer" id="profileDrawer" aria-hidden="true">
   <div class="dwh"><h2>Profile &amp; billing</h2><button class="x" id="pfClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
   <div class="pf" style="padding:16px 20px;overflow-y:auto">
@@ -417,18 +426,22 @@ function renderDataList(t){
   const box=(inner)=>`<div style="padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px">${inner}</div>`;
   const hdr=(txt)=>`<div style="font-size:10.5px;letter-spacing:.04em;color:#6a818a;margin-top:8px;font-weight:700">${txt}</div>`;
   let h='';
+  const delBtn=(cls,n)=>`<button class="${cls}" data-t="${esc(n)}" title="Delete and remove its file" style="flex:none;background:none;border:none;color:#b04a4a;cursor:pointer;font-size:13px;line-height:1;padding:2px 3px">✕</button>`;
   if(tbls.length){
-    h+=hdr('TABLES · QUERYABLE <span style="font-weight:400">— check = in scope</span>');
+    h+=hdr('TABLES · QUERYABLE <span style="font-weight:400">— check = in scope, click = preview</span>');
     for(const x of tbls){const cols=(x.columns||[]).join(', ');
-      h+=`<label style="display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px;cursor:pointer">`+
-         `<input type="checkbox" class="tblScope" value="${esc(x.name)}" checked style="margin-top:3px;flex:none">`+
-         `<span style="min-width:0"><span style="font-weight:600;font-size:12px;color:var(--teal,#0c8c7e)">${esc(x.name)}</span>`+
-         `<span style="display:block;color:#6a818a;font-size:11px;overflow-wrap:anywhere">${(x.rows!=null?x.rows+' rows':'')}${cols?' · '+esc(cols):''}</span></span></label>`;
+      h+=`<div style="display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px">`+
+         `<input type="checkbox" class="tblScope" value="${esc(x.name)}" checked title="Include in queries" style="margin-top:3px;flex:none;cursor:pointer">`+
+         `<span class="tblPrev" data-t="${esc(x.name)}" title="Click to preview rows" style="flex:1;min-width:0;cursor:pointer"><span style="font-weight:600;font-size:12px;color:var(--teal,#0c8c7e)">${esc(x.name)}</span>`+
+         `<span style="display:block;color:#6a818a;font-size:11px;overflow-wrap:anywhere">${(x.rows!=null?x.rows+' rows':'')}${cols?' · '+esc(cols):''}</span></span>`+
+         delBtn('tblDel',x.name)+`</div>`;
     }
   }
   if(docs.length){
     h+=hdr(`DOCUMENTS${lim?' · <span style="color:#c2410c">Q&amp;A LIMITED</span>':''}`);
-    for(const x of docs)h+=box(`<div style="font-weight:600;font-size:12px;color:#3a525c">${esc(x.name)}</div><div style="color:#6a818a;font-size:11px">document — not a queryable table</div>`);
+    for(const x of docs)h+=`<div style="display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px">`+
+      `<span style="flex:1;min-width:0"><span style="font-weight:600;font-size:12px;color:#3a525c">${esc(x.name)}</span><span style="display:block;color:#6a818a;font-size:11px">document — not a queryable table</span></span>`+
+      delBtn('docDel',x.name)+`</div>`;
   }
   if(!tbls.length&&!docs.length)h='<div style="font-size:11.5px;color:#6a818a;margin-top:8px">No data yet. Upload a <b>CSV or Excel</b> file to query it as a table.</div>';
   el.innerHTML=h;
@@ -440,6 +453,24 @@ function scopedTables(){
   const checked=boxes.filter(b=>b.checked).map(b=>b.value);
   return checked.length===boxes.length?null:checked;
 }
+// delete (table/doc) + click-to-preview — delegated so it works after every re-render
+document.addEventListener('click',async e=>{
+  const tdel=e.target.closest('.tblDel'),ddel=e.target.closest('.docDel'),prev=e.target.closest('.tblPrev');
+  if(tdel){const n=tdel.dataset.t;if(!confirm(`Delete table "${n}" and its file? This can't be undone.`))return;
+    try{const r=await fetch('/tables/'+encodeURIComponent(n),{method:'DELETE',headers:authHeaders()});if(r.ok)loadTables();else alert('Delete failed.');}catch(_){alert('Delete failed.');}return;}
+  if(ddel){const n=ddel.dataset.t;if(!confirm(`Delete document "${n}" and its file? This can't be undone.`))return;
+    try{const r=await fetch('/documents/'+encodeURIComponent(n),{method:'DELETE',headers:authHeaders()});if(r.ok)loadTables();else alert('Delete failed.');}catch(_){alert('Delete failed.');}return;}
+  if(prev){openPreview(prev.dataset.t);}
+});
+async function openPreview(name){
+  let d;try{const r=await fetch('/tables/'+encodeURIComponent(name)+'/preview',{headers:authHeaders()});if(!r.ok)throw 0;d=await r.json();}catch(_){alert('Preview unavailable.');return;}
+  const cols=d.columns||[],rows=d.rows||[];
+  const th=cols.map(c=>`<th style="border:1px solid var(--line,#e6eceb);padding:3px 7px;text-align:left;background:#f4f8f7;position:sticky;top:0">${esc(c)}</th>`).join('');
+  const tb=rows.map(rw=>'<tr>'+cols.map(c=>`<td style="border:1px solid var(--line,#e6eceb);padding:3px 7px;white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis">${esc(rw[c])}</td>`).join('')+'</tr>').join('');
+  $('previewTitle').textContent=name+(d.total_rows!=null?` · ${d.total_rows} rows (showing ${rows.length})`:'');
+  $('previewBody').innerHTML=`<div style="overflow:auto;max-height:62vh"><table style="border-collapse:collapse;font-size:12px">${th?'<thead><tr>'+th+'</tr></thead>':''}<tbody>${tb}</tbody></table></div>`;
+  $('previewModal').style.display='flex';
+}
 apikey&&apikey.addEventListener('change',loadTables);
 
 // ---- profile & billing drawer -------------------------------------------
@@ -450,6 +481,8 @@ $('pfClose').addEventListener('click',closeProfile);
 $('credChip').addEventListener('click',openProfile);
 scrim.addEventListener('click',closeProfile);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pfDrawer.classList.contains('open'))closeProfile();});
+$('previewClose').addEventListener('click',()=>{$('previewModal').style.display='none';});
+$('previewModal').addEventListener('click',e=>{if(e.target===$('previewModal'))$('previewModal').style.display='none';});
 async function renderProfile(){
   if(!ME)return;const pl=ME.plan;
   $('chipPlan').textContent=pl.label;

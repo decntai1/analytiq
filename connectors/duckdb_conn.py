@@ -32,6 +32,7 @@ class DuckDBConnector(StructuredConnector):
         self.data_dir = data_dir or os.getenv("DUCKDB_DIR", "./data")
         self._views: list[str] = []
         self._ts_hints: dict[str, dict] = {}   # view -> {col: strptime_format} (cached)
+        self._source_of: dict[str, str] = {}   # view -> source file path (for delete + cleanup)
         self._register_files()
 
     def _register_files(self) -> None:
@@ -207,6 +208,8 @@ class DuckDBConnector(StructuredConnector):
                 return None
             if not tables:
                 return None
+            for t in tables:                       # remember which file each sheet-view came from
+                self._source_of[t["view"]] = path
             # primary view (backward-compatible return) = the largest table;
             # the full per-sheet report is on self.last_ingest for the API layer.
             return max(tables, key=lambda t: t["rows"])["view"]
@@ -220,6 +223,7 @@ class DuckDBConnector(StructuredConnector):
                 return None
             if view not in self._views:
                 self._views.append(view)
+            self._source_of[view] = path
             self.last_ingest = [self._table_stat(view)]
             return view
         # CSV: strict UTF-8 fast path; fall back to encoding-normalized load for messy files
@@ -228,10 +232,43 @@ class DuckDBConnector(StructuredConnector):
             return None
         if view not in self._views:
             self._views.append(view)
+        self._source_of[view] = path
         stat = self._table_stat(view)
         stat["skipped"] = skipped
         self.last_ingest = [stat]
         return view
+
+    def delete_view(self, name: str) -> bool:
+        """Drop a table/view AND delete its source file from data_dir. A user can only
+        name an existing view (looked up in _views) — the deleted file is the one WE
+        recorded at ingest, realpath-confined to data_dir, so a crafted name can't
+        escape the tenant's dir. For a multi-sheet workbook, deleting any of its
+        tables removes the whole source file and all its sheet-views."""
+        view = re.sub(r"\W+", "_", name).lower()
+        if view not in self._views:
+            return False
+        path = self._source_of.get(view)
+        # every view that came from the same source file (xlsx multi-sheet)
+        victims = {v for v, p in self._source_of.items() if path and p == path}
+        victims.add(view)
+        for v in victims:
+            for kind in ("VIEW", "TABLE"):
+                try:
+                    self.con.execute(f'DROP {kind} IF EXISTS "{v}"')
+                except Exception:
+                    pass
+            self._views = [x for x in self._views if x != v]
+            self._ts_hints.pop(v, None)
+            self._source_of.pop(v, None)
+        if path:                                   # remove the file — realpath-confined to data_dir
+            root = os.path.realpath(self.data_dir)
+            rp = os.path.realpath(path)
+            if os.path.isfile(rp) and (rp == root or rp.startswith(root + os.sep)):
+                try:
+                    os.remove(rp)
+                except Exception:
+                    pass
+        return True
 
     def _table_stat(self, view: str) -> dict:
         try:

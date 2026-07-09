@@ -19,6 +19,7 @@ Security: CORS allowlist, per-tenant/IP rate limiting, upload size cap, admin ga
 from __future__ import annotations
 
 import os
+import re
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -472,6 +473,52 @@ def tables(tenant: Tenant | None = Depends(auth.resolve_tenant)):
             "document_count": len(docs),               # FIX: files, not chunks
             "docs_indexed": ctx.doc_index.count,       # chunks (backward-compatible)
             "embedding_mode": config.settings.embedding_mode}
+
+
+@app.delete("/tables/{name}")
+def delete_table(name: str, request: Request,
+                 tenant: Tenant | None = Depends(auth.resolve_tenant)):
+    """Delete a table: drop the view AND remove its source file from disk."""
+    _ratelimit.check(auth.client_key(request, tenant))
+    ctx = _runtime.get(tenant)
+    duck = ctx.upload_duck()
+    if duck is None or not duck.delete_view(name):
+        raise HTTPException(404, f"No such table {name!r}.")
+    ctx.reindex()
+    return {"ok": True}
+
+
+@app.delete("/documents/{name}")
+def delete_document(name: str, request: Request,
+                    tenant: Tenant | None = Depends(auth.resolve_tenant)):
+    """Delete a document: remove its file from disk (realpath-confined) + reindex."""
+    _ratelimit.check(auth.client_key(request, tenant))
+    ctx = _runtime.get(tenant)
+    root = os.path.realpath(ctx.docs_dir())
+    target = os.path.realpath(os.path.join(root, safe_name(name)))
+    if not (os.path.isfile(target) and (target == root or target.startswith(root + os.sep))):
+        raise HTTPException(404, "No such document.")
+    os.remove(target)
+    ctx.reindex()
+    return {"ok": True}
+
+
+@app.get("/tables/{name}/preview")
+def table_preview(name: str, request: Request,
+                  tenant: Tenant | None = Depends(auth.resolve_tenant)):
+    """First ~15 rows + column names — for a click-to-preview popup."""
+    _ratelimit.check(auth.client_key(request, tenant))
+    ctx = _runtime.get(tenant)
+    view = re.sub(r"\W+", "_", name).lower()
+    details = {t["name"]: t for t in _table_details(ctx.connector)}
+    if view not in details:
+        raise HTTPException(404, f"No such table {name!r}.")
+    try:
+        qr = ctx.connector.run_query(f'SELECT * FROM "{view}" LIMIT 15')
+    except Exception as e:
+        raise HTTPException(400, f"Could not preview {name!r}: {e}")
+    return {"name": view, "columns": details[view].get("columns") or list(qr.columns),
+            "rows": qr.rows[:15], "total_rows": details[view].get("rows")}
 
 
 @app.post("/upload")
