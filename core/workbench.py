@@ -174,7 +174,11 @@ class WorkbenchSession:
             if not isinstance(raw, dict) or raw.get("op") not in CAPABILITY:
                 rejected.append({"op": str(raw)[:80], "reason": "unknown or malformed op"})
                 continue
-            name, args = raw["op"], dict(raw.get("args") or {})
+            raw_args = raw.get("args") or {}
+            if not isinstance(raw_args, dict):
+                rejected.append({"op": str(raw)[:80], "reason": "op args must be an object"})
+                continue
+            name, args = raw["op"], dict(raw_args)
             spec, why = CAPABILITY[name], None
             for a, kind in spec["args"].items():
                 v = args.get(a)
