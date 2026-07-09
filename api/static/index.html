@@ -392,7 +392,7 @@ function authHeaders(extra){const h=Object.assign({},extra||{});const k=apikey.v
 async function boot(){
   try{const m=await(await fetch('/models')).json();modelSel.innerHTML='';
     m.models.forEach(x=>{const o=document.createElement('option');o.value=x.name;
-      o.textContent=x.name+(x.provider==='anthropic'?' · claude':'');if(x.name===m.default)o.selected=true;modelSel.appendChild(o);});
+      o.textContent=(x.label||x.name)+(x.provider==='anthropic'?' · claude':'');if(x.name===m.default)o.selected=true;modelSel.appendChild(o);});
   }catch(e){modelSel.innerHTML='<option>models unavailable</option>';}
   try{const h=await(await fetch('/health')).json();
     $('deployMode').textContent=h.deploy_mode||'';$('srcMode').textContent='source · '+(h.data_source||'—');

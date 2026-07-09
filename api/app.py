@@ -131,15 +131,41 @@ def _model_usable(m) -> bool:
     return _runtime_reachable(m.base_url)
 
 
+def _model_dto(m) -> dict:
+    return {"name": m.name, "provider": m.provider, "notes": m.notes,
+            "label": m.label or m.name}
+
+
+def _plan_name_for_request(request: Request) -> str:
+    """Plan name of the logged-in user (multi-tenant), else 'free'."""
+    user = auth.resolve_user(request)
+    if not user:
+        return "free"
+    t = auth.store().by_id(user.tenant_id)
+    return (user.plan or (t.plan if t else "free")) or "free"
+
+
 @app.get("/models")
-def models():
-    usable = [m for m in MODEL_REGISTRY.values() if _model_usable(m)]
-    if not usable:  # never hand back an empty picker
-        usable = ([m for m in MODEL_REGISTRY.values() if m.name == s.default_model]
-                  or list(MODEL_REGISTRY.values()))
-    return {"default": s.default_model,
-            "models": [{"name": m.name, "provider": m.provider, "notes": m.notes}
-                       for m in usable]}
+def models(request: Request):
+    # single-tenant / on-prem: no accounts → all usable models (unchanged)
+    if not s.multi_tenant:
+        usable = [m for m in MODEL_REGISTRY.values() if _model_usable(m)]
+        if not usable:
+            usable = ([m for m in MODEL_REGISTRY.values() if m.name == s.default_model]
+                      or list(MODEL_REGISTRY.values()))
+        return {"default": s.default_model, "models": [_model_dto(m) for m in usable]}
+    # multi-tenant: gate by the caller's plan (logged-out → Free set)
+    plan_name = _plan_name_for_request(request)
+    names = config.models_for_plan(plan_name)
+    allowed = [MODEL_REGISTRY[n] for n in names
+               if n in MODEL_REGISTRY and _model_usable(MODEL_REGISTRY[n])]
+    if not allowed:  # never hand back an empty picker
+        allowed = ([MODEL_REGISTRY[s.default_model]] if s.default_model in MODEL_REGISTRY
+                   else list(MODEL_REGISTRY.values())[:1])
+    default = config.default_model_for_plan(plan_name)
+    if default not in {m.name for m in allowed}:
+        default = allowed[0].name
+    return {"default": default, "models": [_model_dto(m) for m in allowed]}
 
 
 @app.get("/runtime")
@@ -202,6 +228,12 @@ def ask(req: AskRequest, request: Request, tenant: Tenant | None = Depends(auth.
     user = auth.resolve_user(request) if config.settings.multi_tenant else None
     plan = _plan_for(user, tenant)
 
+    # plan-gated model choice: reject a disallowed model BEFORE charging credits
+    # (server-side enforcement — hiding it in the picker is not enforcement).
+    if user and req.model and req.model not in config.models_for_plan(plan["name"]):
+        raise HTTPException(403, f"The {plan['label']} plan can't use the model "
+                                 f"{req.model!r}. Upgrade for access to more models.")
+
     # credits: metered per logged-in user; API-key (programmatic) access is
     # governed by the tenant contract + rate limiter instead.
     if user:
@@ -225,6 +257,10 @@ def ask(req: AskRequest, request: Request, tenant: Tenant | None = Depends(auth.
     # model resolution: explicit choice > company dedicated endpoint > tenant default
     spec_override = None
     model = req.model or None
+    # logged-in user with no explicit choice → their plan's default model
+    # (Free → ministral-8b, not the pricey 120B). Disallowed models already 403'd above.
+    if user and not model:
+        model = config.default_model_for_plan(plan["name"])
     if plan.get("dedicated_llm"):
         ded = _dedicated_spec(tenant)
         if ded and (not model or model == "dedicated"):

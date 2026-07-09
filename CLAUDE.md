@@ -116,7 +116,15 @@ are VPS-demo-lineage features absent from this tree: table scope+delete (no
 route) and full account deletion (no endpoint — throwaway accounts persist,
 unique email per run, harmless). The live-model checks spend a little OpenAI
 credit. After it passes, a human still eyeballs the UX (charts render, trace
-reads clearly) — the script proves plumbing, not experience.
+reads clearly) — the script proves plumbing, not experience. The model picker is
+plan-gated (PLAN_MODELS): Free = ministral-8b only (cheapest tool-capable — Free
+must NOT default to the pricey 120B); paid tiers get the full curated set. Every
+offered model is tool-VERIFIED for run_sql on the Ollama Cloud tier; smoke_live.py
+tool-probes the paid ones (needs OLLAMA_API_KEY in env) and scripts/verify_paid_models.py
+is a ONE-TIME build-time acceptance (uses ADMIN_TOKEN to mint a Business tenant and
+/ask each model E2E — NOT part of the recurring gate). Only add a model to the picker
+after it passes a live query; catalog listing ≠ usable (tier 403s + tool-calling 500s
+are real, only a live probe catches them).
 
 ## Key map (this lineage; see PROJECT_codebase-map.md for the core pipeline)
 core/accounts.py (users/sessions/credits/conversations, change_password) ·
@@ -125,7 +133,8 @@ api/routes_accounts.py (/auth/*, /chats) · api/billing_routes.py (/billing/*)
 singleton) · core/workbench.py + api/workbench_routes.py (+recipes) ·
 core/dashboards.py + api/dashboard_routes.py · api/static/: landing.html
 (5 tiers), login.html, index.html (chat + chips + drawers + pin), workbench.html,
-dashboard.html · config.py: MODEL_REGISTRY, scaffold flags, PLANS.
+dashboard.html · config.py: MODEL_REGISTRY, scaffold flags, PLANS, PLAN_MODELS
+(per-tier model gating; /ask enforces server-side, /models filters by plan).
 
 ## Standing items
 - The REAL EVAL RUN (models × scaffold levels over the gold set) is roadmap

@@ -26,6 +26,7 @@ class ModelSpec:
     base_url: str           # endpoint (ignored for anthropic native)
     api_key_env: str        # env var holding the key ("" for keyless local)
     notes: str = ""
+    label: str = ""         # friendly name for the UI picker (falls back to name)
 
 
 # ---------------------------------------------------------------------------
@@ -58,11 +59,35 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
     # Get a key at https://ollama.com/settings/keys and set OLLAMA_API_KEY.
     # model_id is a CLOUD-CATALOG id (not a local pull name) — pick a tool-capable one;
     # list them with:  curl https://ollama.com/v1/models -H "Authorization: Bearer $OLLAMA_API_KEY"
+    # --- Ollama Cloud picker set (all hosted at ollama.com/v1, one OLLAMA_API_KEY;
+    #     each is tool-VERIFIED for run_sql on the tier — see scripts/verify_paid_models.py).
+    #     Switching = a different model_id in the request; there is NO local ollama.
+    #     'ollama-cloud' kept as the gpt-oss:120b key so DEFAULT_MODEL=ollama-cloud
+    #     (and every s.default_model fallback) stays valid — do not rename it. ---
     "ollama-cloud": ModelSpec(
         "ollama-cloud", "openai_compatible",
         os.getenv("OLLAMA_CLOUD_MODEL", "gpt-oss:120b"),
         "https://ollama.com/v1", "OLLAMA_API_KEY",
         "Ollama Cloud (hosted, tool-capable). Keeps the host light; needs OLLAMA_API_KEY.",
+        label="GPT-OSS 120B — most capable",
+    ),
+    "gpt-oss-20b": ModelSpec(
+        "gpt-oss-20b", "openai_compatible", "gpt-oss:20b",
+        "https://ollama.com/v1", "OLLAMA_API_KEY",
+        "Ollama Cloud — GPT-OSS 20B (fast, tool-capable).",
+        label="GPT-OSS 20B — faster",
+    ),
+    "ministral-8b": ModelSpec(
+        "ministral-8b", "openai_compatible", "ministral-3:8b",
+        "https://ollama.com/v1", "OLLAMA_API_KEY",
+        "Ollama Cloud — Ministral 8B (fastest/cheapest, tool-capable). Free-tier default.",
+        label="Ministral 8B — fast",
+    ),
+    "qwen3-coder": ModelSpec(
+        "qwen3-coder", "openai_compatible", "qwen3-coder:480b",
+        "https://ollama.com/v1", "OLLAMA_API_KEY",
+        "Ollama Cloud — Qwen3-Coder 480B (strong SQL, tool-capable).",
+        label="Qwen3-Coder 480B — strong SQL",
     ),
 
     # --- cloud (thesis comparison; bring your keys) ------------------------
@@ -222,3 +247,30 @@ DECK_CREDITS = 10
 
 def plan_of(name: str) -> dict:
     return PLANS.get(name or "free", PLANS["free"])
+
+
+# ---------------------------------------------------------------------------
+# PLAN_MODELS — which registry models each plan may select (first = the plan's
+# default). Model choice is a tier benefit AND a cost control: Free lands on the
+# cheapest tool-capable model (ministral-8b), not the priciest (gpt-oss:120b).
+# Names MUST be valid MODEL_REGISTRY keys (no orphans). Enforced server-side in
+# /ask, not just hidden in the picker. On-prem/single-tenant ignores this.
+# ---------------------------------------------------------------------------
+_PAID_MODELS = ["ollama-cloud", "gpt-oss-20b", "ministral-8b", "qwen3-coder"]
+PLAN_MODELS: dict[str, list[str]] = {
+    "free":     ["ministral-8b"],
+    "analyst":  list(_PAID_MODELS),
+    "business": list(_PAID_MODELS),
+}
+
+
+def models_for_plan(name: str) -> list[str]:
+    """Registry model names a plan may use; only ones that exist in the registry."""
+    names = PLAN_MODELS.get(name or "free", PLAN_MODELS["free"])
+    return [n for n in names if n in MODEL_REGISTRY]
+
+
+def default_model_for_plan(name: str) -> str:
+    """The plan's default model name (first allowed), or the global fallback."""
+    ms = models_for_plan(name)
+    return ms[0] if ms else settings.default_model
