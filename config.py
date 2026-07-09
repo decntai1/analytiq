@@ -131,6 +131,8 @@ class Settings:
     embedding_mode: str = os.getenv("EMBEDDING_MODE", "auto")
     embedding_model_openai: str = os.getenv("EMBEDDING_MODEL_OPENAI", "text-embedding-3-small")
     embedding_model_local: str = os.getenv("EMBEDDING_MODEL_LOCAL", "all-MiniLM-L6-v2")
+    # torch-free static semantic embeddings (EMBEDDING_MODE=model2vec)
+    embedding_model_model2vec: str = os.getenv("EMBEDDING_MODEL_M2V", "minishlab/potion-base-8M")
 
     # data sources
     # DATA_SOURCE selects how structured data is connected:

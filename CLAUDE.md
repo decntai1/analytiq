@@ -187,16 +187,24 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
   recall saturates at 1.0 and can't discriminate. FIXED by eval/build_demo_db.py:
   a demo DB (ecommerce_large.db, 0-byte placeholder before) with the 3 gold tables
   PLUS ~24 distractors (some confusable: refunds~returns, manufacturing~produced_items)
-  so top-K must choose. Subset smoke run VALIDATED the harness end-to-end (gpt-oss-20b,
-  err=0.0; recall none=1.0 vs full=0.5 — it discriminates now). STILL TODO for the
-  clean run: (1) model2vec embeddings (test/hash retrieval gives bad recall — the
-  full-grid numbers aren't defensible on hash), (2) full grid on the 4-model ladder
-  AFTER Ollama Pro (~160-400 calls; free key will wall). Run:
+  so top-K must choose. Harness runs end-to-end (gpt-oss-20b, err=0.0). HONEST reading
+  of the recall numbers (earlier "none=1.0 vs full=0.5 — it discriminates" was WRONG —
+  it discriminated in the WRONG direction between two ARTIFACTS): none=1.0 is DEGENERATE
+  (scaffold_schema_rag OFF dumps ALL tables, so every table is trivially "present" —
+  not competence); the number that matters is `full` retrieval QUALITY. Two fixes shipped
+  this session: (a) chart_ok scorer bug — it read charts[0]["mark"]["type"] but value-
+  labelled charts are LAYERED (mark at layer[0]); every line/bar scored a false miss,
+  pinning chart_ok at 0.40. Fixed with _chart_mark() (score.py). (b) model2vec DONE —
+  EMBEDDING_MODE=model2vec (potion-base-8M, torch-free, in requirements.txt). Under it
+  `full` recall 0.50 (hash noise — missed even `sales`) -> 0.70, and now the misses are
+  MEANINGFUL: q1/q3 fetch `sales` where hash missed it; q5 "gross MARGIN" loses `sales`
+  to confusable traps (revenue_targets/manufacturing), q4 loses `produced_items` — real
+  retrieval difficulty, not noise. STILL TODO for the clean run: full grid on the 4-model
+  ladder under EMBEDDING_MODE=model2vec, AFTER Ollama Pro (~160-400 calls; free key walls). Run:
   docker compose exec -T app python - < eval/build_demo_db.py  # (re)build DB+doc
-  docker compose exec -e DB_URL=sqlite:////app/ecommerce_large.db -e DOCS_DIR=/app/eval/demo_docs \
-    -T app python -m eval.score --models <ladder> --levels none rag rag+val+rep full
+  docker compose exec -e EMBEDDING_MODE=model2vec -e DB_URL=sqlite:////app/ecommerce_large.db \
+    -e DOCS_DIR=/app/eval/demo_docs -T app \
+    python -m eval.score --models <ladder> --levels none rag rag+val+rep full
   Flag once per session until the full grid runs.
-- model2vec port (torch-free semantic embeddings) = the fix for the weak test-mode
-  document arm — high value, "next session". See [[cloud-image-torch-free]].
 - Live-keys Stripe checkout has never run; first real checkout is a launch-day step.
 - Keep this file updated in the same commit as any change to the facts above.

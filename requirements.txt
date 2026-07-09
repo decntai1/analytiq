@@ -21,6 +21,11 @@ pandas==3.0.3          # load-bearing: workbench DuckDB .df(), profiling, .xlsx 
 stripe==15.3.0         # checkout + portal + webhook signature verification. Pinned to batteries-green version.
 
 # embeddings (on-prem). Cloud uses the openai package above.
+model2vec==0.8.2          # TORCH-FREE static semantic embeddings (EMBEDDING_MODE=model2vec).
+#                         # Safe as a base dep: pulls only huggingface_hub/tokenizers/safetensors/
+#                         # joblib (~20MB, NO torch/CUDA) — this is the lightweight semantic path
+#                         # that does NOT hit the ~5G OOM trap below. Gives the eval + on-prem real
+#                         # semantic retrieval without sentence-transformers.
 # sentence-transformers   # local embeddings — do NOT list here: it pulls ~5G torch+CUDA.
 #                         # The Dockerfile installs it ONLY under the INSTALL_LOCAL_EMBEDDINGS=1
 #                         # build arg (set by the on-prem compose files), keeping it out of the

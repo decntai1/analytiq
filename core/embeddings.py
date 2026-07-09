@@ -2,10 +2,12 @@
 Embedding abstraction — powers BOTH retrieval arms (schema-RAG and doc-RAG).
 
 Modes:
-  - "openai": hosted embeddings (cloud demo)
-  - "local":  sentence-transformers, runs on the box (on-prem; nothing leaves)
-  - "test":   deterministic hash embedding, zero deps / no network (CI + offline demo)
-  - "auto":   openai if a key is present, else local if installed, else test (warns)
+  - "openai":   hosted embeddings (cloud demo)
+  - "local":    sentence-transformers, runs on the box (on-prem; nothing leaves)
+  - "model2vec": torch-free STATIC semantic embeddings — real semantic quality
+                 with no torch/CUDA (see Model2VecEmbedder). Self-hostable.
+  - "test":     deterministic hash embedding, zero deps / no network (CI + offline demo)
+  - "auto":     openai if a key is present, else local if installed, else test (warns)
 
 Same interface either way, so the index code never branches on deployment.
 """
@@ -44,6 +46,27 @@ class LocalEmbedder(Embedder):
         return self._model.encode(texts, normalize_embeddings=True).tolist()
 
 
+class Model2VecEmbedder(Embedder):
+    """Torch-free STATIC semantic embeddings (model2vec). A distilled static
+    token-embedding lookup with numpy-only inference — real semantic quality
+    WITHOUT the ~5GB torch/sentence-transformers dependency that has OOM'd the
+    box (deps: huggingface_hub/safetensors/tokenizers, no torch/CUDA). This is
+    the quality fix for the eval and on-prem retrieval — the 'test' hash mode is
+    not semantic. Vectors are L2-normalized to match the other embedders."""
+    def __init__(self) -> None:
+        import numpy as np
+        from model2vec import StaticModel
+        self._np = np
+        self._model = StaticModel.from_pretrained(settings.embedding_model_model2vec)
+        self.dim = int(self._model.dim)
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        np = self._np
+        vecs = np.asarray(self._model.encode(list(texts)), dtype=float)
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        return (vecs / norms).tolist()
+
+
 class TestEmbedder(Embedder):
     """Deterministic bag-of-hashed-tokens vector. Not semantic, but real vectors —
     enough to wire and test retrieval offline. Swap to local/openai for quality."""
@@ -67,6 +90,8 @@ def get_embedder() -> Embedder:
         return OpenAIEmbedder()
     if mode == "local":
         return LocalEmbedder()
+    if mode == "model2vec":
+        return Model2VecEmbedder()
     if mode == "test":
         return TestEmbedder()
     # auto
