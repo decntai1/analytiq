@@ -48,6 +48,12 @@ Tables you may query:
 Rules:
 - Write correct, read-only SQL (SELECT/WITH only) over the tables above. Aggregate in SQL.
 - For visualizations call make_chart with a neutral spec (no data field; rows are bound).
+- You MAY produce more than one chart (up to 4) when the question warrants it: e.g.
+  the same data two ways ("as a bar and a pie"), or a broad/"overview" question broken
+  into a few distinct query+chart pairs. make_chart charts the MOST RECENT query's
+  rows, so INTERLEAVE strictly: run_sql -> make_chart -> run_sql -> make_chart (never
+  run two queries before charting the first). Prefer one clear chart unless multiple
+  genuinely add value; do not pad.
 - For qualitative/"why"/policy questions call search_documents and ground your answer
   in the returned passages, citing sources.
 - Keep the final answer concise and grounded strictly in tool results. Do not invent numbers.
@@ -188,6 +194,8 @@ class Orchestrator:
         if name == "make_chart":
             if not last_rows:
                 return "", last_rows, "No query results to chart yet. Run a query first."
+            if len(charts) >= 4:   # deterministic cap — a vague prompt can't spawn a wall of charts
+                return "Chart limit reached (4). Summarise instead of adding more charts.", last_rows, None
             spec = {"type": args.get("type"), "title": args.get("title", ""),
                     "encoding": args.get("encoding", {})}
             try:
