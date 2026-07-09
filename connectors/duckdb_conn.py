@@ -158,10 +158,95 @@ class DuckDBConnector(StructuredConnector):
         if not reader:
             return None
         view = _re.sub(r"\W+", "_", os.path.splitext(os.path.basename(path))[0]).lower()
-        try:
-            self.con.execute(f"CREATE OR REPLACE VIEW {view} AS SELECT * FROM {reader}('{path}')")
+        if ext == ".parquet":
+            try:
+                self.con.execute(f'CREATE OR REPLACE VIEW "{view}" AS SELECT * FROM read_parquet(\'{path}\')')
+            except Exception:
+                return None
             if view not in self._views:
                 self._views.append(view)
+            self.last_ingest = [self._table_stat(view)]
             return view
-        except Exception:
+        # CSV: strict UTF-8 fast path; fall back to encoding-normalized load for messy files
+        rows, skipped = self._load_csv(view, path)
+        if rows is None:
             return None
+        if view not in self._views:
+            self._views.append(view)
+        stat = self._table_stat(view)
+        stat["skipped"] = skipped
+        self.last_ingest = [stat]
+        return view
+
+    def _table_stat(self, view: str) -> dict:
+        try:
+            n = self.con.execute(f'SELECT count(*) FROM "{view}"').fetchone()[0]
+        except Exception:
+            n = None
+        try:
+            c = len(self.con.execute(f'DESCRIBE "{view}"').fetchall())
+        except Exception:
+            c = None
+        return {"view": view, "rows": n, "cols": c}
+
+    def _load_csv(self, view: str, path: str) -> tuple:
+        """Load a CSV as `view`. Returns (rows, skipped) or (None, None) if genuinely
+        unparseable (empty / header-only / not a table).
+
+        Fast path: strict read_csv_auto (clean UTF-8). Fallback for messy real-world
+        files: transcode a non-UTF-8 file (utf-8-sig -> cp1252 -> latin-1 -> replace)
+        to UTF-8, then parse — skipping ONLY genuinely-malformed rows and COUNTING them.
+        Never silently bulk-drops rows (e.g. ignore_errors alone would discard every
+        non-UTF-8 row); never reports success on 0 rows (upload-honesty invariant)."""
+        import os as _os
+        import tempfile
+        # 1) strict fast path — clean UTF-8 files load unchanged
+        try:
+            self.con.execute(f'CREATE OR REPLACE TABLE "{view}" AS SELECT * FROM read_csv_auto(\'{path}\')')
+            n = self.con.execute(f'SELECT count(*) FROM "{view}"').fetchone()[0]
+            if n > 0:
+                return n, 0
+        except Exception:
+            pass
+        # 2) transcode fallback — normalize encoding to UTF-8, then parse tolerantly
+        raw = open(path, "rb").read()
+        text = None
+        for enc in ("utf-8-sig", "cp1252", "latin-1"):
+            try:
+                text = raw.decode(enc)
+                break
+            except Exception:
+                continue
+        if text is None:
+            text = raw.decode("utf-8", errors="replace")
+        tf = tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, encoding="utf-8")
+        try:
+            tf.write(text)
+            tf.close()
+            for t in ("reject_errors", "reject_scans"):
+                try:
+                    self.con.execute(f"DROP TABLE IF EXISTS {t}")
+                except Exception:
+                    pass
+            skipped = 0
+            try:
+                self.con.execute(f'CREATE OR REPLACE TABLE "{view}" AS SELECT * FROM '
+                                 f"read_csv_auto('{tf.name}', ignore_errors=true, sample_size=-1, store_rejects=true)")
+                skipped = self.con.execute("SELECT count(*) FROM reject_errors").fetchone()[0]
+            except Exception:
+                try:
+                    self.con.execute(f'CREATE OR REPLACE TABLE "{view}" AS SELECT * FROM '
+                                     f"read_csv_auto('{tf.name}', ignore_errors=true, sample_size=-1)")
+                except Exception:
+                    self.con.execute(f'DROP TABLE IF EXISTS "{view}"')
+                    return None, None
+            n = self.con.execute(f'SELECT count(*) FROM "{view}"').fetchone()[0]
+            if n > 0:
+                return n, skipped
+            self.con.execute(f'DROP TABLE IF EXISTS "{view}"')
+            return None, None
+        finally:
+            try:
+                _os.unlink(tf.name)
+            except Exception:
+                pass

@@ -497,6 +497,11 @@ async def upload(request: Request, file: UploadFile = File(...),
             f.write(data)
         view = duck.register_file(path)
         if view is None:
+            if name.lower().endswith((".csv", ".parquet")):
+                return {"ok": False, "error":
+                        f"Couldn't read any rows from '{name}'. The file looks empty, "
+                        f"header-only, or isn't a table — it needs a header row followed "
+                        f"by data rows."}
             return {"ok": False, "error":
                     f"Couldn't find a data table in '{name}'. If it's a multi-sheet "
                     f"workbook, make sure at least one sheet contains a plain table "
@@ -506,9 +511,12 @@ async def upload(request: Request, file: UploadFile = File(...),
         listing = ", ".join(
             f"'{t['view']}'" + (f" ({t['rows']} rows)" if t.get("rows") is not None else "")
             for t in tables)
+        skipped = sum((t.get("skipped") or 0) for t in tables)
+        skip_note = (f" Skipped {skipped} malformed row{'s' if skipped != 1 else ''} "
+                     f"(couldn't parse them).") if skipped else ""
         return {"ok": True, "kind": "structured", "table": view, "tables": tables,
                 "message": f"'{name}' is now a queryable table{'s' if len(tables) != 1 else ''}: "
-                           f"{listing}. Ask a question to query it."}
+                           f"{listing}.{skip_note} Ask a question to query it."}
     else:
         docs_dir = ctx.docs_dir()
         path = os.path.join(docs_dir, name)
