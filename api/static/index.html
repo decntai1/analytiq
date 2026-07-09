@@ -410,7 +410,7 @@ async function loadTables(){
 apikey&&apikey.addEventListener('change',loadTables);
 
 // ---- profile & billing drawer -------------------------------------------
-const pfDrawer=$('profileDrawer');let BILLCFG=null;
+const pfDrawer=$('profileDrawer'),scrim=$('scrim');let BILLCFG=null;
 function openProfile(){pfDrawer.classList.add('open');scrim.classList.add('open');pfDrawer.setAttribute('aria-hidden','false');}
 function closeProfile(){pfDrawer.classList.remove('open');scrim.classList.remove('open');pfDrawer.setAttribute('aria-hidden','true');}
 $('pfClose').addEventListener('click',closeProfile);
@@ -568,7 +568,7 @@ fileInput.addEventListener('change',async()=>{const f=fileInput.files[0];if(!f)r
 });
 
 // --- inference settings drawer (runtime + sampling params, live) ---
-const drawer=$('drawer'),scrim=$('scrim'),cfgBody=$('cfgBody');
+const drawer=$('drawer'),cfgBody=$('cfgBody');
 let cfgMeta=[],cfgLoaded=false;const cfgTimers={};
 function openCfg(){drawer.classList.add('open');scrim.classList.add('open');drawer.setAttribute('aria-hidden','false');if(!cfgLoaded)loadCfg();}
 function closeCfg(){drawer.classList.remove('open');scrim.classList.remove('open');drawer.setAttribute('aria-hidden','true');}
