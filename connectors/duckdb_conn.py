@@ -31,6 +31,7 @@ class DuckDBConnector(StructuredConnector):
         self.con = duckdb.connect(database=":memory:")
         self.data_dir = data_dir or os.getenv("DUCKDB_DIR", "./data")
         self._views: list[str] = []
+        self._ts_hints: dict[str, dict] = {}   # view -> {col: strptime_format} (cached)
         self._register_files()
 
     def _register_files(self) -> None:
@@ -44,13 +45,60 @@ class DuckDBConnector(StructuredConnector):
                 except Exception:
                     pass
 
+    # Deterministic timestamp formats to recognize at the schema layer (no LLM,
+    # no data mutation — just teach the model how to cast a text timestamp column).
+    _TS_FORMATS = (
+        "%a %b %d %H:%M:%S +0000 %Y",   # Twitter: "Thu Jun 07 01:13:25 +0000 2018"
+        "%Y-%m-%dT%H:%M:%S",            # ISO with T
+        "%Y-%m-%d %H:%M:%S",            # ISO with space
+        "%Y-%m-%d",                     # plain date
+        "%m/%d/%Y",                     # US date
+        "%d/%m/%Y",                     # EU date
+    )
+
+    def _ts_hints_for(self, view: str) -> dict:
+        """Detect timestamp-like VARCHAR columns by sampling values and trying known
+        formats via try_strptime. Cached per view. Structural RECOGNITION only — the
+        data is never modified; the hint just tells the model the right cast."""
+        if view in self._ts_hints:
+            return self._ts_hints[view]
+        hints: dict[str, str] = {}
+        try:
+            cols = self.con.execute(f'DESCRIBE "{view}"').fetchall()
+        except Exception:
+            self._ts_hints[view] = hints
+            return hints
+        for c in cols:
+            name, ctype = c[0], str(c[1]).upper()
+            if "VARCHAR" not in ctype:
+                continue
+            for fmt in self._TS_FORMATS:
+                try:
+                    ok, tot = self.con.execute(
+                        f"SELECT count(*) FILTER (WHERE try_strptime(v, '{fmt}') IS NOT NULL), "
+                        f'count(*) FROM (SELECT "{name}" v FROM "{view}" '
+                        f'WHERE "{name}" IS NOT NULL LIMIT 200)').fetchone()
+                    if tot and ok >= tot * 0.9:     # >=90% of the sample parses -> this format
+                        hints[name] = fmt
+                        break
+                except Exception:
+                    continue
+        self._ts_hints[view] = hints
+        return hints
+
     def schema_by_table(self) -> dict[str, str]:
         out: dict[str, str] = {}
         for view in self._views:
             try:
-                cols = self.con.execute(f"DESCRIBE {view}").fetchall()
-                col_desc = ", ".join(f"{c[0]} {c[1]}" for c in cols)
-                out[view] = f"TABLE {view} ({col_desc})"
+                cols = self.con.execute(f'DESCRIBE "{view}"').fetchall()
+                hints = self._ts_hints_for(view)
+                parts = []
+                for c in cols:
+                    d = f"{c[0]} {c[1]}"
+                    if c[0] in hints:
+                        d += f" -- timestamp text; cast with strptime(\"{c[0]}\", '{hints[c[0]]}')"
+                    parts.append(d)
+                out[view] = f"TABLE {view} ({', '.join(parts)})"
             except Exception:
                 pass
         return out
@@ -141,6 +189,7 @@ class DuckDBConnector(StructuredConnector):
         """Register a single uploaded data file as a queryable view. Returns view name."""
         import os, re as _re
         ext = os.path.splitext(path)[1].lower()
+        self._ts_hints = {}   # new data -> recompute timestamp hints lazily
         reader = {".csv": "read_csv_auto", ".parquet": "read_parquet"}.get(ext)
         if ext in (".xlsx", ".xls"):
             # Real-world workbooks are PRESENTATION documents (title pages, bracket

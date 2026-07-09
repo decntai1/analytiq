@@ -51,6 +51,10 @@ Read-only SQL guard in both connectors (dashboards refresh inherits it);
 neutral chart-spec whitelist (never expose raw Vega-Lite; grow primitive by
 primitive); uploads/workbench/dashboards realpath-confined; workbench LLM has
 NO tools (whitelisted-ops plan → deterministic executor → logged recipe);
+structure/type RECOGNITION is automatic & deterministic at ingest (e.g.
+timestamp-text detection annotates the schema with the strptime cast — see
+duckdb_conn._ts_hints_for) but the LLM NEVER auto-mutates data to "fix" a file
+— reshaping/cleaning is user-initiated in the workbench, advise-only;
 sources immutable (sha256-checked); plan changes ONLY via the verified Stripe
 webhook; upload honesty — CSV ingest must NEVER silently bulk-drop rows (no bare
 `ignore_errors`; messy/non-UTF-8 files get an encoding-transcode fallback that
