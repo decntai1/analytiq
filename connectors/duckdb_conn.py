@@ -35,13 +35,19 @@ class DuckDBConnector(StructuredConnector):
         self._register_files()
 
     def _register_files(self) -> None:
-        patterns = {"*.csv": "read_csv_auto", "*.parquet": "read_parquet"}
-        for pat, reader in patterns.items():
-            for path in glob.glob(os.path.join(self.data_dir, "**", pat), recursive=True):
-                view = re.sub(r"\W+", "_", os.path.splitext(os.path.basename(path))[0]).lower()
+        """Startup re-scan: re-register every file on disk through the SAME robust
+        path as upload (register_file) — encoding transcode for messy CSVs, xlsx
+        multi-sheet, timestamp hints. In-memory DuckDB is wiped on restart, so this
+        is what makes uploads survive a rebuild/reboot. NEVER use a parallel bare
+        loader here — that's what silently dropped cp1252 CSVs and all xlsx before."""
+        seen = set()
+        for pat in ("*.csv", "*.parquet", "*.xlsx", "*.xls"):
+            for path in sorted(glob.glob(os.path.join(self.data_dir, "**", pat), recursive=True)):
+                if path in seen:
+                    continue
+                seen.add(path)
                 try:
-                    self.con.execute(f"CREATE VIEW {view} AS SELECT * FROM {reader}('{path}')")
-                    self._views.append(view)
+                    self.register_file(path)
                 except Exception:
                     pass
 

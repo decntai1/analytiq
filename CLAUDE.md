@@ -61,6 +61,10 @@ webhook; upload honesty — CSV ingest must NEVER silently bulk-drop rows (no ba
 loads all rows and REPORTS any genuinely-skipped ones) and NEVER report success
 on 0-row ingestion (empty/header-only → honest failure). See
 connectors/duckdb_conn.py `_load_csv`; map coverage with scripts/ingest_suite.py.
+Ingest has ONE robust path (`register_file`); the startup re-scan (`_register_files`,
+which re-registers uploads into the in-memory DuckDB after every restart) MUST route
+through it — never a parallel bare loader. That drift silently dropped cp1252 CSVs
+and ALL xlsx on restart until unified.
 
 ## Deploy (docker-compose + Caddy — this is what the tree ships; see DEPLOY.md)
 NOTE: an earlier CLAUDE.md described a bare-metal `deploy_vps.sh` /
