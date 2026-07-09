@@ -67,6 +67,30 @@ def build_orchestrator() -> Orchestrator:
     return Orchestrator(conn, si, di)
 
 
+def _chart_mark(spec: dict) -> str | None:
+    """Extract the Vega-Lite mark type from a rendered chart spec, mirroring the
+    THREE shapes viz/render_vegalite emits: tables carry _kind; pie/plain charts
+    put the mark at the top level; charts with value labels are LAYERED, where the
+    real mark is layer[0] (layer[1] is the 'text' label overlay). The old scorer
+    only checked the top-level mark, so every value-labelled chart (single-series
+    line/bar) scored a false miss."""
+    if not isinstance(spec, dict):
+        return None
+    mark = spec.get("mark")
+    if isinstance(mark, dict):
+        return mark.get("type")
+    if isinstance(mark, str):
+        return mark
+    layers = spec.get("layer")
+    if isinstance(layers, list) and layers and isinstance(layers[0], dict):
+        m0 = layers[0].get("mark")
+        if isinstance(m0, dict):
+            return m0.get("type")
+        if isinstance(m0, str):
+            return m0
+    return spec.get("_kind")
+
+
 def score_item(result: dict, gold: dict) -> dict:
     retrieved = set(result.get("tables_retrieved", []))
     expected = set(gold.get("expected_tables", []))
@@ -78,7 +102,7 @@ def score_item(result: dict, gold: dict) -> dict:
         chart_ok = len(charts) > 0
         want = gold.get("expected_chart_type")
         if chart_ok and want:
-            got = charts[0].get("mark", {}).get("type") if isinstance(charts[0].get("mark"), dict) else charts[0].get("_kind")
+            got = _chart_mark(charts[0])
             # rendered charts carry VEGA-LITE mark names; gold uses NEUTRAL spec names.
             # Map back before comparing (must mirror viz/render_vegalite._MARK).
             got = _VL_TO_NEUTRAL.get(got, got)
