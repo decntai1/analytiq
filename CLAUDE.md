@@ -97,6 +97,26 @@ it out of the cloud image; it's only needed for on-prem local embeddings. If a
 pip step runs on a box where /tmp is a small tmpfs, point TMPDIR at the big
 disk first (a scrubbed `env -i` or Docker build layer resets it to /tmp).
 
+## Post-deploy verification (required gate)
+The five batteries prove the code in isolation (tempdir). They do NOT test the
+live deployed site over real HTTPS — that's what `scripts/smoke_live.py` is for.
+It hits the RUNNING instance end-to-end:
+  python scripts/smoke_live.py --base-url https://analytiq.dcentai.tech
+Checks (PASS/FAIL/SKIP per line, no secrets printed, exit 0 iff none FAILed):
+health+landing (5 tiers), TLS cert valid/for-domain/unexpired, register→Free+15
+credits, CSV upload+row count, live /ask → answer+chart spec+sql_log trace,
+2-sheet xlsx (both sheets), dashboard pin→persist→refresh (SQL only, no LLM),
+workbench session→profile→propose→apply→download with source sha256 unchanged,
+credit metering, billing DISABLED (config configured:false, checkout 503 not
+500). Run under the app venv so the xlsx path (openpyxl) runs instead of SKIPs.
+Rule: this must pass GREEN against the live site before billing is wired, and
+after every future deploy. Two spec items are deliberately SKIPPED because they
+are VPS-demo-lineage features absent from this tree: table scope+delete (no
+route) and full account deletion (no endpoint — throwaway accounts persist,
+unique email per run, harmless). The live-model checks spend a little OpenAI
+credit. After it passes, a human still eyeballs the UX (charts render, trace
+reads clearly) — the script proves plumbing, not experience.
+
 ## Key map (this lineage; see PROJECT_codebase-map.md for the core pipeline)
 core/accounts.py (users/sessions/credits/conversations, change_password) ·
 api/routes_accounts.py (/auth/*, /chats) · api/billing_routes.py (/billing/*)
