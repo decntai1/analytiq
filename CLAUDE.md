@@ -87,13 +87,14 @@ all three: api/billing_routes.py PRICES). Webhook endpoint /billing/webhook
 must be registered in the Stripe dashboard.
 
 Prereqs / gotchas: Docker + compose engine must be installed on the host (not
-present by default on a fresh box). MEMORY: the cloud image should be
-torch-free — the Dockerfile installs sentence-transformers only under the
-`INSTALL_LOCAL_EMBEDDINGS=1` build arg, BUT requirements.txt currently lists
-sentence-transformers unconditionally, so `pip install -r requirements.txt`
-drags torch+CUDA (~5G) into every image. On a small (≤4G) box that build is a
-real OOM risk and pure dead weight for cloud prod (EMBEDDING_MODE=openai). Keep
-it out of the cloud image; it's only needed for on-prem local embeddings. If a
+present by default on a fresh box). The cloud image is torch-free: the Dockerfile
+installs sentence-transformers ONLY under the `INSTALL_LOCAL_EMBEDDINGS=1` build
+arg (set by the on-prem compose files), and requirements.txt keeps it commented
+out (fixed in 769368d) so `pip install -r requirements.txt` no longer drags
+torch+CUDA (~5G) into every image. Never re-list sentence-transformers in
+requirements.txt — on a small (≤4G) box that build is a real OOM risk (it already
+powered the box off once) and pure dead weight for cloud prod
+(EMBEDDING_MODE=openai). It's only needed for on-prem local embeddings. If a
 pip step runs on a box where /tmp is a small tmpfs, point TMPDIR at the big
 disk first (a scrubbed `env -i` or Docker build layer resets it to /tmp).
 
