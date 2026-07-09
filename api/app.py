@@ -103,11 +103,43 @@ def health():
             "data_source": s.data_source, "default_model": s.default_model}
 
 
+def _runtime_reachable(base_url: str, timeout: float = 0.25) -> bool:
+    """Cheap TCP probe of a local runtime endpoint (keyless models point here)."""
+    import socket
+    from urllib.parse import urlparse
+    try:
+        u = urlparse(base_url)
+        host = u.hostname or "localhost"
+        port = u.port or (443 if u.scheme == "https" else 80)
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
+def _model_usable(m) -> bool:
+    """True if this registry model has a working backend on THIS deploy, so the
+    picker never offers a model that would fail when selected:
+      - stub: eval-only, never in the UI picker
+      - keyed model (cloud): its api_key_env must be set
+      - keyless model (local runtime): that runtime must be reachable
+    """
+    if m.provider == "stub":
+        return False
+    if m.api_key_env:
+        return bool(os.getenv(m.api_key_env))
+    return _runtime_reachable(m.base_url)
+
+
 @app.get("/models")
 def models():
+    usable = [m for m in MODEL_REGISTRY.values() if _model_usable(m)]
+    if not usable:  # never hand back an empty picker
+        usable = ([m for m in MODEL_REGISTRY.values() if m.name == s.default_model]
+                  or list(MODEL_REGISTRY.values()))
     return {"default": s.default_model,
             "models": [{"name": m.name, "provider": m.provider, "notes": m.notes}
-                       for m in MODEL_REGISTRY.values()]}
+                       for m in usable]}
 
 
 @app.get("/runtime")
