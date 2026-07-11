@@ -14,6 +14,7 @@ from __future__ import annotations
 import glob
 import os
 import re
+import threading
 
 from connectors.base import QueryResult, StructuredConnector
 from config import settings
@@ -28,6 +29,16 @@ _WRITE = re.compile(
 class DuckDBConnector(StructuredConnector):
     def __init__(self, data_dir: str | None = None) -> None:
         import duckdb
+        # ONE re-entrant lock serializes every touch of self.con AND the shared
+        # Python state (_views/_ts_hints/_source_of/last_ingest). A DuckDB
+        # connection is not safe for concurrent use across threads, and same-tenant
+        # requests share ONE cached connector (see core/tenant_runtime) running in
+        # FastAPI's sync threadpool — so concurrent /ask, an upload racing a query,
+        # and a dashboard refresh burst all land here at once. A per-connector lock
+        # (vs per-query cursors) is the right fix at this load: it also covers the
+        # Python-side mutations that a cursor would leave unguarded. RLock so a
+        # locked public method can call another (register_file -> _load_csv, etc.).
+        self._lock = threading.RLock()
         self.con = duckdb.connect(database=":memory:")
         self.data_dir = data_dir or os.getenv("DUCKDB_DIR", "./data")
         self._views: list[str] = []
@@ -95,19 +106,20 @@ class DuckDBConnector(StructuredConnector):
 
     def schema_by_table(self) -> dict[str, str]:
         out: dict[str, str] = {}
-        for view in self._views:
-            try:
-                cols = self.con.execute(f'DESCRIBE "{view}"').fetchall()
-                hints = self._ts_hints_for(view)
-                parts = []
-                for c in cols:
-                    d = f"{c[0]} {c[1]}"
-                    if c[0] in hints:
-                        d += f" -- timestamp text; cast with strptime(\"{c[0]}\", '{hints[c[0]]}')"
-                    parts.append(d)
-                out[view] = f"TABLE {view} ({', '.join(parts)})"
-            except Exception:
-                pass
+        with self._lock:
+            for view in self._views:
+                try:
+                    cols = self.con.execute(f'DESCRIBE "{view}"').fetchall()
+                    hints = self._ts_hints_for(view)
+                    parts = []
+                    for c in cols:
+                        d = f"{c[0]} {c[1]}"
+                        if c[0] in hints:
+                            d += f" -- timestamp text; cast with strptime(\"{c[0]}\", '{hints[c[0]]}')"
+                        parts.append(d)
+                    out[view] = f"TABLE {view} ({', '.join(parts)})"
+                except Exception:
+                    pass
         return out
 
     def _guard(self, query: str) -> None:
@@ -122,9 +134,10 @@ class DuckDBConnector(StructuredConnector):
     def run_query(self, query: str) -> QueryResult:
         self._guard(query)
         limit = settings.sql_row_limit
-        cur = self.con.execute(query)
-        cols = [d[0] for d in cur.description]
-        rows = [dict(zip(cols, r)) for r in cur.fetchmany(limit + 1)]
+        with self._lock:
+            cur = self.con.execute(query)
+            cols = [d[0] for d in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchmany(limit + 1)]
         return QueryResult(columns=cols, rows=rows[:limit], truncated=len(rows) > limit)
 
 
@@ -196,47 +209,48 @@ class DuckDBConnector(StructuredConnector):
         """Register a single uploaded data file as a queryable view. Returns view name."""
         import os, re as _re
         ext = os.path.splitext(path)[1].lower()
-        self._ts_hints = {}   # new data -> recompute timestamp hints lazily
         reader = {".csv": "read_csv_auto", ".parquet": "read_parquet"}.get(ext)
-        if ext in (".xlsx", ".xls"):
-            # Real-world workbooks are PRESENTATION documents (title pages, bracket
-            # art, per-topic sheets) — not tidy single tables. Ingest every
-            # data-bearing sheet, detect its header row, and drop decorative sheets.
-            try:
-                tables = self._ingest_xlsx(path)
-            except Exception:
+        with self._lock:
+            self._ts_hints = {}   # new data -> recompute timestamp hints lazily
+            if ext in (".xlsx", ".xls"):
+                # Real-world workbooks are PRESENTATION documents (title pages, bracket
+                # art, per-topic sheets) — not tidy single tables. Ingest every
+                # data-bearing sheet, detect its header row, and drop decorative sheets.
+                try:
+                    tables = self._ingest_xlsx(path)
+                except Exception:
+                    return None
+                if not tables:
+                    return None
+                for t in tables:                   # remember which file each sheet-view came from
+                    self._source_of[t["view"]] = path
+                # primary view (backward-compatible return) = the largest table;
+                # the full per-sheet report is on self.last_ingest for the API layer.
+                return max(tables, key=lambda t: t["rows"])["view"]
+            if not reader:
                 return None
-            if not tables:
-                return None
-            for t in tables:                       # remember which file each sheet-view came from
-                self._source_of[t["view"]] = path
-            # primary view (backward-compatible return) = the largest table;
-            # the full per-sheet report is on self.last_ingest for the API layer.
-            return max(tables, key=lambda t: t["rows"])["view"]
-        if not reader:
-            return None
-        view = _re.sub(r"\W+", "_", os.path.splitext(os.path.basename(path))[0]).lower()
-        if ext == ".parquet":
-            try:
-                self.con.execute(f'CREATE OR REPLACE VIEW "{view}" AS SELECT * FROM read_parquet(\'{path}\')')
-            except Exception:
+            view = _re.sub(r"\W+", "_", os.path.splitext(os.path.basename(path))[0]).lower()
+            if ext == ".parquet":
+                try:
+                    self.con.execute(f'CREATE OR REPLACE VIEW "{view}" AS SELECT * FROM read_parquet(\'{path}\')')
+                except Exception:
+                    return None
+                if view not in self._views:
+                    self._views.append(view)
+                self._source_of[view] = path
+                self.last_ingest = [self._table_stat(view)]
+                return view
+            # CSV: strict UTF-8 fast path; fall back to encoding-normalized load for messy files
+            rows, skipped = self._load_csv(view, path)
+            if rows is None:
                 return None
             if view not in self._views:
                 self._views.append(view)
             self._source_of[view] = path
-            self.last_ingest = [self._table_stat(view)]
+            stat = self._table_stat(view)
+            stat["skipped"] = skipped
+            self.last_ingest = [stat]
             return view
-        # CSV: strict UTF-8 fast path; fall back to encoding-normalized load for messy files
-        rows, skipped = self._load_csv(view, path)
-        if rows is None:
-            return None
-        if view not in self._views:
-            self._views.append(view)
-        self._source_of[view] = path
-        stat = self._table_stat(view)
-        stat["skipped"] = skipped
-        self.last_ingest = [stat]
-        return view
 
     def delete_view(self, name: str) -> bool:
         """Drop a table/view AND delete its source file from data_dir. A user can only
@@ -245,21 +259,22 @@ class DuckDBConnector(StructuredConnector):
         escape the tenant's dir. For a multi-sheet workbook, deleting any of its
         tables removes the whole source file and all its sheet-views."""
         view = re.sub(r"\W+", "_", name).lower()
-        if view not in self._views:
-            return False
-        path = self._source_of.get(view)
-        # every view that came from the same source file (xlsx multi-sheet)
-        victims = {v for v, p in self._source_of.items() if path and p == path}
-        victims.add(view)
-        for v in victims:
-            for kind in ("VIEW", "TABLE"):
-                try:
-                    self.con.execute(f'DROP {kind} IF EXISTS "{v}"')
-                except Exception:
-                    pass
-            self._views = [x for x in self._views if x != v]
-            self._ts_hints.pop(v, None)
-            self._source_of.pop(v, None)
+        with self._lock:
+            if view not in self._views:
+                return False
+            path = self._source_of.get(view)
+            # every view that came from the same source file (xlsx multi-sheet)
+            victims = {v for v, p in self._source_of.items() if path and p == path}
+            victims.add(view)
+            for v in victims:
+                for kind in ("VIEW", "TABLE"):
+                    try:
+                        self.con.execute(f'DROP {kind} IF EXISTS "{v}"')
+                    except Exception:
+                        pass
+                self._views = [x for x in self._views if x != v]
+                self._ts_hints.pop(v, None)
+                self._source_of.pop(v, None)
         if path:                                   # remove the file — realpath-confined to data_dir
             root = os.path.realpath(self.data_dir)
             rp = os.path.realpath(path)
