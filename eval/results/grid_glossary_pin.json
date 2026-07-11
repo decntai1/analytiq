@@ -1,0 +1,302 @@
+{
+  "_meta": {
+    "experiment": "glossary_pin_ab",
+    "embedder_mode": "model2vec",
+    "labels": true,
+    "glossary_metrics": [
+      "net_revenue",
+      "gross_margin",
+      "active_customers",
+      "production_volume"
+    ],
+    "schema_top_k": 6,
+    "n_tables": 27,
+    "model_independent": "by construction \u2014 store.search + pin never see the LLM",
+    "generated_at": "2026-07-11T17:26:22Z"
+  },
+  "arms": {
+    "pin_off": {
+      "per_item": {
+        "q1_monthly_revenue": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved_topk": [
+            "sales_forecast",
+            "sales",
+            "revenue_targets",
+            "produced_items",
+            "returns",
+            "invoices"
+          ],
+          "matched_metrics": [],
+          "pinned": [],
+          "final": [
+            "sales_forecast",
+            "sales",
+            "revenue_targets",
+            "produced_items",
+            "returns",
+            "invoices"
+          ],
+          "recall": 1.0
+        },
+        "q2_net_revenue_trap": {
+          "expected": [
+            "sales",
+            "returns"
+          ],
+          "retrieved_topk": [
+            "revenue_targets",
+            "sales",
+            "sales_forecast",
+            "returns",
+            "invoices",
+            "warehouses"
+          ],
+          "matched_metrics": [],
+          "pinned": [],
+          "final": [
+            "revenue_targets",
+            "sales",
+            "sales_forecast",
+            "returns",
+            "invoices",
+            "warehouses"
+          ],
+          "recall": 1.0
+        },
+        "q3_top_products": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved_topk": [
+            "sales",
+            "revenue_targets",
+            "sales_forecast",
+            "product_catalog",
+            "order_items",
+            "returns"
+          ],
+          "matched_metrics": [],
+          "pinned": [],
+          "final": [
+            "sales",
+            "revenue_targets",
+            "sales_forecast",
+            "product_catalog",
+            "order_items",
+            "returns"
+          ],
+          "recall": 1.0
+        },
+        "q4_why_q3_weak": {
+          "expected": [
+            "sales",
+            "produced_items"
+          ],
+          "retrieved_topk": [
+            "sales",
+            "sales_forecast",
+            "revenue_targets",
+            "inventory",
+            "refunds",
+            "promotions"
+          ],
+          "matched_metrics": [],
+          "pinned": [],
+          "final": [
+            "sales",
+            "sales_forecast",
+            "revenue_targets",
+            "inventory",
+            "refunds",
+            "promotions"
+          ],
+          "recall": 0.5
+        },
+        "q5_margin": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved_topk": [
+            "revenue_targets",
+            "produced_items",
+            "inventory",
+            "manufacturing",
+            "sales_forecast",
+            "categories"
+          ],
+          "matched_metrics": [],
+          "pinned": [],
+          "final": [
+            "revenue_targets",
+            "produced_items",
+            "inventory",
+            "manufacturing",
+            "sales_forecast",
+            "categories"
+          ],
+          "recall": 0.0
+        }
+      },
+      "avg_recall": 0.7
+    },
+    "pin_on": {
+      "per_item": {
+        "q1_monthly_revenue": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved_topk": [
+            "sales_forecast",
+            "sales",
+            "revenue_targets",
+            "produced_items",
+            "returns",
+            "invoices"
+          ],
+          "matched_metrics": [],
+          "pinned": [],
+          "final": [
+            "sales_forecast",
+            "sales",
+            "revenue_targets",
+            "produced_items",
+            "returns",
+            "invoices"
+          ],
+          "recall": 1.0
+        },
+        "q2_net_revenue_trap": {
+          "expected": [
+            "sales",
+            "returns"
+          ],
+          "retrieved_topk": [
+            "revenue_targets",
+            "sales",
+            "sales_forecast",
+            "returns",
+            "invoices",
+            "warehouses"
+          ],
+          "matched_metrics": [
+            "net_revenue"
+          ],
+          "pinned": [
+            "sales",
+            "returns"
+          ],
+          "final": [
+            "revenue_targets",
+            "sales",
+            "sales_forecast",
+            "returns",
+            "invoices",
+            "warehouses"
+          ],
+          "recall": 1.0
+        },
+        "q3_top_products": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved_topk": [
+            "sales",
+            "revenue_targets",
+            "sales_forecast",
+            "product_catalog",
+            "order_items",
+            "returns"
+          ],
+          "matched_metrics": [],
+          "pinned": [],
+          "final": [
+            "sales",
+            "revenue_targets",
+            "sales_forecast",
+            "product_catalog",
+            "order_items",
+            "returns"
+          ],
+          "recall": 1.0
+        },
+        "q4_why_q3_weak": {
+          "expected": [
+            "sales",
+            "produced_items"
+          ],
+          "retrieved_topk": [
+            "sales",
+            "sales_forecast",
+            "revenue_targets",
+            "inventory",
+            "refunds",
+            "promotions"
+          ],
+          "matched_metrics": [],
+          "pinned": [],
+          "final": [
+            "sales",
+            "sales_forecast",
+            "revenue_targets",
+            "inventory",
+            "refunds",
+            "promotions"
+          ],
+          "recall": 0.5
+        },
+        "q5_margin": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved_topk": [
+            "revenue_targets",
+            "produced_items",
+            "inventory",
+            "manufacturing",
+            "sales_forecast",
+            "categories"
+          ],
+          "matched_metrics": [
+            "gross_margin"
+          ],
+          "pinned": [
+            "sales"
+          ],
+          "final": [
+            "revenue_targets",
+            "produced_items",
+            "inventory",
+            "manufacturing",
+            "sales_forecast",
+            "categories",
+            "sales"
+          ],
+          "recall": 1.0
+        }
+      },
+      "avg_recall": 0.9
+    }
+  },
+  "comparison": {
+    "banked_labels_ceiling": {
+      "off": 0.7,
+      "on": 0.7
+    },
+    "pin_off_avg": 0.7,
+    "pin_on_avg": 0.9
+  },
+  "traps_cleared": {
+    "pin_off": {
+      "q5_margin": false,
+      "q4_why_q3_weak": false
+    },
+    "pin_on": {
+      "q5_margin": true,
+      "q4_why_q3_weak": false
+    }
+  },
+  "q2_pin_is_noop": true
+}

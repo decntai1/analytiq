@@ -223,5 +223,20 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
   docker compose exec -e EMBEDDING_MODE=model2vec -e DB_URL=sqlite:////app/ecommerce_large.db \
     -e DOCS_DIR=/app/eval/demo_docs -T app \
     python -m eval.score --models <ladder> --levels none rag rag+val+rep full
+- GLOSSARY→TABLE PINNING (the deterministic ceiling-breaker) SHIPPED as a retrieval
+  scaffold: `index/glossary_pin.py` + `SCAFFOLD_GLOSSARY_PIN` (config, DEFAULT OFF — not
+  live until the result justifies flipping it). Rule: a question naming a glossary metric
+  pins the tables in that metric's FORMULA (`SUM(sales.revenue)` → `sales`) into the schema
+  context; pure function of (question, glossary), so retrieval stays model-independent BY
+  CONSTRUCTION. Wired in `orchestrator._schema_context` (skips authoritative user table-
+  scope; only pins tables the connector has). A/B `eval/glossary_pin_ab.py` (labels ON,
+  model2vec) → `eval/results/grid_glossary_pin*`: recall **0.70→0.90**, q5 `gross_margin`
+  CLEARS (`sales` 0.00→1.00) where frozen labels could NOT; q2 `net_revenue` pins but is a
+  NO-OP (already retrieved — doesn't distort what works); q4 (causal/doc, no metric match)
+  unchanged 0.50. Determinism boundary is documented in the module + evidence md (normalized-
+  key substring match; no synonyms/stemming). Paired thesis result with the labels nuanced-
+  negative: labels shift ranking but can't break the ceiling; a deterministic glossary rule
+  breaks it exactly where labels couldn't — scaffolding substituting for capability at the
+  retrieval layer. bge-m3 (the embedder-ceiling arm) now OPTIONAL — parked pending Ntest1.
 - Live-keys Stripe checkout has never run; first real checkout is a launch-day step.
 - Keep this file updated in the same commit as any change to the facts above.
