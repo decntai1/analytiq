@@ -174,14 +174,26 @@
   .sendbtn svg{width:18px;height:18px}
   .chint{max-width:760px;margin:9px auto 0;text-align:center;font-family:var(--mono);font-size:11px;color:var(--faint)}
 
+  /* hamburger — mobile only (opens the sidebar drawer) */
+  .menubtn{display:none}
   @media (max-width:880px){
-    .app{grid-template-columns:1fr;height:auto;min-height:100vh}.main{height:auto;min-height:60vh}
-    .sidebar{flex-direction:row;align-items:center;flex-wrap:wrap;gap:10px;border-right:0;border-bottom:1px solid var(--line);
-      position:sticky;top:0;z-index:5;padding:11px 14px;overflow:visible}
-    .brand{flex:1;padding:0}.slab,.datacard,.sidefoot{display:none}
-    .sec{flex-direction:row}.sec.model select{width:auto;min-width:150px}.keyinput{width:140px}.btn.full{width:auto}
-    .conv{padding:24px 16px}.suggest{grid-template-columns:1fr}.scroll{flex:initial}
+    .app{grid-template-columns:1fr;height:100vh}
+    .main{height:100vh}
+    /* the sidebar becomes a slide-in LEFT drawer over the shared scrim */
+    .sidebar{position:fixed;top:0;left:0;height:100vh;width:min(86vw,320px);z-index:61;
+      transform:translateX(-100%);transition:transform .26s cubic-bezier(.4,0,.2,1);
+      border-right:1px solid var(--line);box-shadow:16px 0 48px rgba(12,26,32,.16);
+      padding:16px 16px calc(16px + env(safe-area-inset-bottom));gap:18px;overflow-y:auto;
+      -webkit-overflow-scrolling:touch}
+    .sidebar.open{transform:none}
+    /* leave room for the fixed hamburger above the conversation */
+    .conv{padding:54px 16px 24px}
+    .suggest{grid-template-columns:1fr}
     .deckbtn span{display:none}
+    .menubtn{position:fixed;top:10px;left:12px;z-index:56;display:grid;place-items:center;
+      width:44px;height:44px;border-radius:11px;background:var(--card);border:1px solid var(--line);
+      box-shadow:var(--shadow-sm);cursor:pointer;color:var(--ink)}
+    .menubtn svg{width:22px;height:22px}
   }
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}  /* inference settings drawer */
 
@@ -271,7 +283,7 @@
 </head>
 <body>
 <div class="app">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <a class="brand" href="/" style="text-decoration:none"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M10 19V5M16 19v-6M22 19H2"/></svg></span><span class="name">analyt<b>iq</b></span></a>
 
     <div class="sec">
@@ -357,6 +369,7 @@
   </div>
 </div>
 
+<button class="menubtn" id="menuBtn" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
 <div class="credchip" id="credChip" title="Profile, plan & billing"><span class="pl" id="chipPlan"></span><span class="cr" id="chipCred"></span></div>
 <div class="scrim" id="scrim"></div>
 <div id="previewModal" style="display:none;position:fixed;inset:0;background:rgba(12,26,32,.4);z-index:80;align-items:center;justify-content:center;padding:20px">
@@ -489,8 +502,21 @@ async function openPreview(name){
 }
 apikey&&apikey.addEventListener('change',loadTables);
 
+// ---- mobile nav drawer (hamburger) --------------------------------------
+const sidebarEl=$('sidebar'),menuBtn=$('menuBtn'),scrim=$('scrim');
+function openMenu(){sidebarEl.classList.add('open');scrim.classList.add('open');if(menuBtn)menuBtn.setAttribute('aria-expanded','true');}
+function closeMenu(){sidebarEl.classList.remove('open');scrim.classList.remove('open');if(menuBtn)menuBtn.setAttribute('aria-expanded','false');}
+if(menuBtn)menuBtn.addEventListener('click',()=>sidebarEl.classList.contains('open')?closeMenu():openMenu());
+scrim.addEventListener('click',closeMenu);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sidebarEl.classList.contains('open'))closeMenu();});
+// close the drawer after a navigation tap inside it (chats, tool links); leave it
+// open for upload / model changes where the user stays put.
+sidebarEl.addEventListener('click',e=>{
+  if(e.target.closest('.chatitem, a[href], #newChatBtn'))closeMenu();
+});
+
 // ---- profile & billing drawer -------------------------------------------
-const pfDrawer=$('profileDrawer'),scrim=$('scrim');let BILLCFG=null;
+const pfDrawer=$('profileDrawer');let BILLCFG=null;
 function openProfile(){pfDrawer.classList.add('open');scrim.classList.add('open');pfDrawer.setAttribute('aria-hidden','false');}
 function closeProfile(){pfDrawer.classList.remove('open');scrim.classList.remove('open');pfDrawer.setAttribute('aria-hidden','true');}
 $('pfClose').addEventListener('click',closeProfile);
