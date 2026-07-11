@@ -218,6 +218,13 @@
     .sec.collapsed > *:not(.slab){display:none}
     .sec{gap:8px}
   }
+
+  /* --- mobile: upload = primary in-drawer action; tighter composer --- */
+  @media (max-width:880px){
+    .sec.add .btn.full{background:var(--teal);color:#fff;border-color:transparent}
+    .sec.add .btn.full:hover{background:var(--teal-press)}
+    .composer{padding:12px 12px 16px}
+  }
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}  /* inference settings drawer */
 
   /* --- mobile base: kill iOS focus-zoom (inputs >=16px) + >=44px touch targets --- */
