@@ -62,9 +62,14 @@ loads all rows and REPORTS any genuinely-skipped ones) and NEVER report success
 on 0-row ingestion (empty/header-only → honest failure). See
 connectors/duckdb_conn.py `_load_csv`; map coverage with scripts/ingest_suite.py.
 Ingest has ONE robust path (`register_file`); the startup re-scan (`_register_files`,
-which re-registers uploads into the in-memory DuckDB after every restart) MUST route
+which re-registers uploads into the per-tenant DuckDB after every restart) MUST route
 through it — never a parallel bare loader. That drift silently dropped cp1252 CSVs
-and ALL xlsx on restart until unified.
+and ALL xlsx on restart until unified. DuckDB access is THREAD-SAFE via a per-connector
+re-entrant lock (guards the shared con AND the shared Python state — same-tenant requests
+share one cached connector in FastAPI's sync threadpool); per-tenant DuckDB is FILE-BACKED
+at `tenants_root/<tid>/analytics*.duckdb` (one file per store; xlsx materialized as TABLEs
+so it persists; migration is the lazy `_register_files` rebuild). Gate:
+`tests/concurrency_smoke.py`. Scope/parked scale decisions: `docs/scaling-decisions.md`.
 
 ## Deploy (docker-compose + Caddy — this is what the tree ships; see DEPLOY.md)
 NOTE: an earlier CLAUDE.md described a bare-metal `deploy_vps.sh` /
