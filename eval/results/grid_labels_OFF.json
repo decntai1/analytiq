@@ -1,0 +1,561 @@
+[
+  {
+    "model": "ministral-8b",
+    "level": "full",
+    "qid": "q1_monthly_revenue",
+    "repeat": 1,
+    "question": "Show total revenue per month for 2024 as a line chart.",
+    "expected_value": null,
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 3,
+    "answer_correct": null,
+    "latency": 25.8,
+    "tables_retrieved": [
+      "sales",
+      "sales_forecast",
+      "returns",
+      "revenue_targets",
+      "produced_items",
+      "invoices"
+    ],
+    "result_rows": [
+      {
+        "month_num": "01",
+        "month_name": null,
+        "total_revenue": 174783.0
+      },
+      {
+        "month_num": "02",
+        "month_name": null,
+        "total_revenue": 174783.0
+      },
+      {
+        "month_num": "03",
+        "month_name": null,
+        "total_revenue": 174783.0
+      },
+      {
+        "month_num": "04",
+        "month_name": null,
+        "total_revenue": 174783.0
+      },
+      {
+        "month_num": "05",
+        "month_name": null,
+        "total_revenue": 174783.0
+      },
+      {
+        "month_num": "06",
+        "month_name": null,
+        "total_revenue": 174783.0
+      },
+      {
+        "month_num": "07",
+        "month_name": null,
+        "total_revenue": 108365.46
+      },
+      {
+        "month_num": "08",
+        "month_name": null,
+        "total_revenue": 108365.46
+      },
+      {
+        "month_num": "09",
+        "month_name": null,
+        "total_revenue": 108365.46
+      },
+      {
+        "month_num": "10",
+        "month_name": null,
+        "total_revenue": 174783.0
+      },
+      {
+        "month_num": "11",
+        "month_name": null,
+        "total_revenue": 174783.0
+      },
+      {
+        "month_num": "12",
+        "month_name": null,
+        "total_revenue": 174783.0
+      }
+    ],
+    "sql_log": [
+      "WITH monthly_revenue AS (\n  SELECT\n    EXTRACT(MONTH FROM DATE(sale_date)) AS month_num,\n    TO_CHAR(DATE(sale_date), 'Month') AS month_name,\n    SUM(revenue) AS total_revenue\n  FROM\n    sales\n  WHERE\n    EXTRACT(YEAR FROM DATE(sale_date)) = 2024\n    AND sale_date IS NOT NULL\n  GROUP BY\n    EXTRACT(MONTH FROM DATE(sale_date)), TO_CHAR(DATE(sale_date), 'Month')\n  ORDER BY\n    month_num\n)\nSELECT * FROM monthly_revenue;",
+      "SELECT\n    EXTRACT(MONTH FROM DATE(sale_date)) AS month_num,\n    TO_CHAR(DATE(sale_date), 'Month') AS month_name,\n    SUM(revenue) AS total_revenue\nFROM\n    sales\nWHERE\n    EXTRACT(YEAR FROM DATE(sale_date)) = 2024\n    AND sale_date IS NOT NULL\nGROUP BY\n    EXTRACT(MONTH FROM DATE(sale_date)), TO_CHAR(DATE(sale_date), 'Month')\nORDER BY\n    month_num;",
+      "SELECT\n    strftime('%m', sale_date) AS month_num,\n    strftime('%B', sale_date) AS month_name,\n    SUM(revenue) AS total_revenue\nFROM\n    sales\nWHERE\n    strftime('%Y', sale_date) = '2024'\nGROUP BY\n    strftime('%m', sale_date), strftime('%B', sale_date)\nORDER BY\n    strftime('%m', sale_date);",
+      "SELECT\n    strftime('%m', sale_date) AS month_num,\n    strftime('%B', sale_date) AS month_name,\n    SUM(revenue) AS total_revenue\nFROM\n    sales\nWHERE\n    sale_date LIKE '2024-%'\nGROUP BY\n    strftime('%m', sale_date), strftime('%B', sale_date)\nORDER BY\n    strftime('%m', sale_date);"
+    ]
+  },
+  {
+    "model": "ministral-8b",
+    "level": "full",
+    "qid": "q2_net_revenue_trap",
+    "repeat": 1,
+    "question": "What was net revenue in Q4?",
+    "expected_value": null,
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 1,
+    "answer_correct": null,
+    "latency": 24.18,
+    "tables_retrieved": [
+      "revenue_targets",
+      "sales",
+      "sales_forecast",
+      "returns",
+      "warehouses",
+      "invoices"
+    ],
+    "result_rows": [
+      {
+        "total_revenue": null
+      }
+    ],
+    "sql_log": [
+      "WITH q4_sales AS (\n    SELECT SUM(revenue) AS total_revenue\n    FROM sales\n    WHERE sale_date LIKE '2023-10-%'\n       OR sale_date LIKE '2023-11-%'\n       OR sale_date LIKE '2023-12-%'\n),\n\nq4_returns AS (\n    SELECT COALESCE(SUM(amount), 0) AS total_returns\n    FROM returns\n    WHERE return_date LIKE '2023-10-%'\n       OR return_date LIKE '2023-11-%'\n       OR return_date LIKE '2023-12-%'\n)\n\nSELECT (q4_sales.total_revenue - q4_returns.total_returns) AS net_revenue\nFROM q4_sales, q4_returns;",
+      "SELECT \n    COUNT(*) AS q4_sales_count,\n    SUM(CASE WHEN sale_date LIKE '2023-10-%' OR sale_date LIKE '2023-11-%' OR sale_date LIKE '2023-12-%' THEN 1 ELSE 0 END) AS q4_sales_count_actual,\n    SUM(CASE WHEN return_date LIKE '2023-10-%' OR return_date LIKE '2023-11-%' OR return_date LIKE '2023-12-%' THEN 1 ELSE 0 END) AS q4_returns_count_actual\nFROM (\n    SELECT 1 AS dummy UNION ALL SELECT 2 UNION ALL SELECT 3\n) dummy_tbl\nCROSS JOIN (\n    SELECT COUNT(*) AS q4_sales_count FROM sales WHERE sale_date LIKE '2023-10-%' OR sale_date LIKE '2023-11-%' OR sale_date LIKE '2023-12-%'\n) s,\n(\n    SELECT COUNT(*) AS q4_returns_count FROM returns WHERE return_date LIKE '2023-10-%' OR return_date LIKE '2023-11-%' OR return_date LIKE '2023-12-%'\n) r;",
+      "SELECT \n    COUNT(*) AS q4_sales_count,\n    SUM(CASE WHEN sale_date LIKE '2023-10-%' OR sale_date LIKE '2023-11-%' OR sale_date LIKE '2023-12-%' THEN 1 ELSE 0 END) AS q4_sales_count_actual\nFROM sales\nUNION ALL\nSELECT \n    COUNT(*) AS q4_returns_count,\n    SUM(CASE WHEN return_date LIKE '2023-10-%' OR return_date LIKE '2023-11-%' OR return_date LIKE '2023-12-%' THEN 1 ELSE 0 END) AS q4_returns_count_actual\nFROM returns;",
+      "SELECT \n    SUM(CASE WHEN sale_date LIKE '2023-10-%' OR sale_date LIKE '2023-11-%' OR sale_date LIKE '2023-12-%' THEN 1 ELSE 0 END) AS q4_sales_count,\n    SUM(revenue) AS total_revenue\nFROM sales\nUNION ALL\nSELECT \n    SUM(CASE WHEN return_date LIKE '2023-10-%' OR return_date LIKE '2023-11-%' OR return_date LIKE '2023-12-%' THEN 1 ELSE 0 END) AS q4_returns_count,\n    COALESCE(SUM(amount), 0) AS total_returns\nFROM returns;",
+      "WITH q4_sales AS (\n    SELECT SUM(revenue) AS total_revenue\n    FROM sales\n    WHERE sale_date LIKE '2023-10-%'\n       OR sale_date LIKE '2023-11-%'\n       OR sale_date LIKE '2023-12-%'\n),\n\nq4_returns AS (\n    SELECT COALESCE(SUM(amount), 0) AS total_returns\n    FROM returns\n    WHERE return_date LIKE '2023-10-%'\n       OR return_date LIKE '2023-11-%'\n       OR return_date LIKE '2023-12-%'\n)\n\nSELECT \n    q4_sales.total_revenue,\n    q4_returns.total_returns,\n    (q4_sales.total_revenue - q4_returns.total_returns) AS net_revenue\nFROM q4_sales, q4_returns;",
+      "SELECT SUM(revenue) AS total_revenue\nFROM sales\nWHERE sale_date LIKE '2023-10-%'\n   OR sale_date LIKE '2023-11-%'\n   OR sale_date LIKE '2023-12-%';"
+    ]
+  },
+  {
+    "model": "ministral-8b",
+    "level": "full",
+    "qid": "q3_top_products",
+    "repeat": 1,
+    "question": "Top 10 products by revenue.",
+    "expected_value": null,
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 1,
+    "answer_correct": null,
+    "latency": 9.02,
+    "tables_retrieved": [
+      "sales",
+      "revenue_targets",
+      "sales_forecast",
+      "product_catalog",
+      "produced_items",
+      "order_items"
+    ],
+    "result_rows": [
+      {
+        "product": "Slate Dock",
+        "total_revenue": 223802.88
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 208001.58000000002
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 199737.12
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 184620.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 177039.72
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 161249.28
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 155710.68
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 140604.42
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 135750.0
+      },
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 121327.92
+      }
+    ],
+    "sql_log": [
+      "WITH product_revenue AS (\n  SELECT\n    product,\n    SUM(revenue) AS total_revenue\n  FROM\n    sales\n  GROUP BY\n    product\n  ORDER BY\n    total_revenue DESC\n  LIMIT 10\n)\nSELECT * FROM product_revenue;"
+    ]
+  },
+  {
+    "model": "ministral-8b",
+    "level": "full",
+    "qid": "q4_why_q3_weak",
+    "repeat": 1,
+    "question": "Why were Q3 sales weak?",
+    "expected_value": null,
+    "table_recall": 0.5,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": null,
+    "latency": 3.22,
+    "tables_retrieved": [
+      "sales_forecast",
+      "sales",
+      "revenue_targets",
+      "refunds",
+      "inventory",
+      "customers"
+    ],
+    "result_rows": [],
+    "sql_log": []
+  },
+  {
+    "model": "ministral-8b",
+    "level": "full",
+    "qid": "q5_margin",
+    "repeat": 1,
+    "question": "What was our gross margin by quarter?",
+    "expected_value": null,
+    "table_recall": 0.0,
+    "chart_ok": false,
+    "docs_ok": true,
+    "error_count": 5,
+    "answer_correct": null,
+    "latency": 19.46,
+    "tables_retrieved": [
+      "revenue_targets",
+      "categories",
+      "inventory",
+      "manufacturing",
+      "sales_forecast",
+      "produced_items"
+    ],
+    "result_rows": [
+      {
+        "quarter": "2024-01",
+        "production_volume": 7200
+      },
+      {
+        "quarter": "2024-02",
+        "production_volume": 7200
+      },
+      {
+        "quarter": "2024-03",
+        "production_volume": 7200
+      },
+      {
+        "quarter": "2024-04",
+        "production_volume": 7200
+      },
+      {
+        "quarter": "2024-05",
+        "production_volume": 7200
+      },
+      {
+        "quarter": "2024-06",
+        "production_volume": 7200
+      },
+      {
+        "quarter": "2024-07",
+        "production_volume": 4464
+      },
+      {
+        "quarter": "2024-08",
+        "production_volume": 4464
+      },
+      {
+        "quarter": "2024-09",
+        "production_volume": 4464
+      },
+      {
+        "quarter": "2024-10",
+        "production_volume": 7200
+      },
+      {
+        "quarter": "2024-11",
+        "production_volume": 7200
+      },
+      {
+        "quarter": "2024-12",
+        "production_volume": 7200
+      }
+    ],
+    "sql_log": [
+      "WITH sales_data AS (\n  SELECT\n    EXTRACT(QUARTER FROM produced_date) AS quarter,\n    SUM(units_produced) AS total_units_produced\n  FROM produced_items\n  GROUP BY EXTRACT(QUARTER FROM produced_date)\n),\n\n-- Assuming sales.revenue and sales.cost are not directly available, we approximate revenue based on units produced and a hypothetical price per unit.\n-- Since actual sales data is not available, we will use a placeholder approach for demonstration.\n-- For a real analysis, you would need access to actual sales and cost data.\n\n-- Placeholder: Assume each unit produced corresponds to a revenue of 100 and a cost of 60 (for demonstration only)\n-- This is a simulation and not grounded in actual data.\n\nrevenue_and_cost AS (\n  SELECT\n    s.quarter,\n    SUM(s.total_units_produced * 100) AS revenue,\n    SUM(s.total_units_produced * 60) AS cost\n  FROM sales_data s\n  GROUP BY s.quarter\n)\n\nSELECT\n    quarter,\n    revenue,\n    cost,\n    (revenue - cost) / revenue AS gross_margin\nFROM revenue_and_cost\nORDER BY quarter;",
+      "WITH sales_data AS (\n  SELECT\n    EXTRACT(QUARTER FROM produced_date) AS quarter,\n    SUM(units_produced) AS total_units_produced\n  FROM produced_items\n  GROUP BY EXTRACT(QUARTER FROM produced_date)\n)\n\nSELECT\n    s.quarter,\n    SUM(s.total_units_produced) AS total_units,\n    -- Placeholder logic: Assume revenue is 100 per unit and cost is 60 per unit\n    SUM(s.total_units_produced) * 100 AS revenue,\n    SUM(s.total_units_produced) * 60 AS cost,\n    (SUM(s.total_units_produced) * 100 - SUM(s.total_units_produced) * 60) / (SUM(s.total_units_produced) * 100) AS gross_margin\nFROM sales_data s\nGROUP BY s.quarter\nORDER BY s.quarter;",
+      "WITH sales_data AS (\n  SELECT\n    EXTRACT(QUARTER FROM produced_date) AS quarter,\n    SUM(units_produced) AS total_units_produced\n  FROM produced_items\n  GROUP BY EXTRACT(QUARTER FROM produced_date)\n)\n\nSELECT\n    quarter,\n    SUM(total_units_produced) AS total_units,\n    -- Placeholder logic: Assume revenue is 100 per unit and cost is 60 per unit\n    SUM(total_units_produced) * 100 AS revenue,\n    SUM(total_units_produced) * 60 AS cost,\n    (SUM(total_units_produced) * 100 - SUM(total_units_produced) * 60) / NULLIF(SUM(total_units_produced) * 100, 0) AS gross_margin\nFROM sales_data\nGROUP BY quarter\nORDER BY quarter;",
+      "WITH quarterly_production AS (\n  SELECT\n    EXTRACT(QUARTER FROM produced_date) AS quarter,\n    SUM(units_produced) AS units_produced\n  FROM produced_items\n  GROUP BY EXTRACT(QUARTER FROM produced_date)\n)\n\nSELECT\n    quarter,\n    units_produced,\n    -- Placeholder logic: Assume revenue is 100 per unit and cost is 60 per unit\n    units_produced * 100 AS revenue,\n    units_produced * 60 AS cost,\n    (units_produced * 100 - units_produced * 60) / NULLIF(units_produced * 100, 0) AS gross_margin\nFROM quarterly_production\nORDER BY quarter;",
+      "SELECT\n    EXTRACT(QUARTER FROM produced_date) AS quarter,\n    SUM(units_produced) AS production_volume\nFROM produced_items\nGROUP BY EXTRACT(QUARTER FROM produced_date)\nORDER BY quarter;",
+      "SELECT\n    strftime('%Y-%m', produced_date) AS quarter,\n    SUM(units_produced) AS production_volume\nFROM produced_items\nGROUP BY strftime('%Y-%m', produced_date)\nORDER BY MIN(produced_date);"
+    ]
+  },
+  {
+    "_summary": true,
+    "model": "ministral-8b",
+    "level": "full",
+    "table_recall": 0.7,
+    "chart_ok_rate": 0.8,
+    "docs_ok_rate": 1.0,
+    "answer_correct_rate": null,
+    "answer_graded_n": 0,
+    "avg_errors": 2.0,
+    "avg_latency_s": 16.34
+  },
+  {
+    "model": "gpt-oss-20b",
+    "level": "full",
+    "qid": "q1_monthly_revenue",
+    "repeat": 1,
+    "question": "Show total revenue per month for 2024 as a line chart.",
+    "expected_value": null,
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": null,
+    "latency": 14.08,
+    "tables_retrieved": [
+      "sales",
+      "sales_forecast",
+      "returns",
+      "revenue_targets",
+      "produced_items",
+      "invoices"
+    ],
+    "result_rows": [
+      {
+        "month": "2024-01",
+        "total_revenue": 174783.0
+      },
+      {
+        "month": "2024-02",
+        "total_revenue": 174783.0
+      },
+      {
+        "month": "2024-03",
+        "total_revenue": 174783.0
+      },
+      {
+        "month": "2024-04",
+        "total_revenue": 174783.0
+      },
+      {
+        "month": "2024-05",
+        "total_revenue": 174783.0
+      },
+      {
+        "month": "2024-06",
+        "total_revenue": 174783.0
+      },
+      {
+        "month": "2024-07",
+        "total_revenue": 108365.46
+      },
+      {
+        "month": "2024-08",
+        "total_revenue": 108365.46
+      },
+      {
+        "month": "2024-09",
+        "total_revenue": 108365.46
+      },
+      {
+        "month": "2024-10",
+        "total_revenue": 174783.0
+      },
+      {
+        "month": "2024-11",
+        "total_revenue": 174783.0
+      },
+      {
+        "month": "2024-12",
+        "total_revenue": 174783.0
+      }
+    ],
+    "sql_log": [
+      "SELECT strftime('%Y-%m', sale_date) AS month, SUM(revenue) AS total_revenue FROM sales WHERE sale_date BETWEEN '2024-01-01' AND '2024-12-31' GROUP BY month ORDER BY month;"
+    ]
+  },
+  {
+    "model": "gpt-oss-20b",
+    "level": "full",
+    "qid": "q2_net_revenue_trap",
+    "repeat": 1,
+    "question": "What was net revenue in Q4?",
+    "expected_value": null,
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": null,
+    "latency": 37.15,
+    "tables_retrieved": [
+      "revenue_targets",
+      "sales",
+      "sales_forecast",
+      "returns",
+      "warehouses",
+      "invoices"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 500139.0
+      }
+    ],
+    "sql_log": [
+      "SELECT\n  SUM(sales.revenue) - COALESCE((SELECT SUM(amount) FROM returns WHERE strftime('%m', return_date) IN ('10','11','12')),0) AS net_revenue\nFROM sales\nWHERE strftime('%m', sale_date) IN ('10','11','12');"
+    ]
+  },
+  {
+    "model": "gpt-oss-20b",
+    "level": "full",
+    "qid": "q3_top_products",
+    "repeat": 1,
+    "question": "Top 10 products by revenue.",
+    "expected_value": null,
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": null,
+    "latency": 16.94,
+    "tables_retrieved": [
+      "sales",
+      "revenue_targets",
+      "sales_forecast",
+      "product_catalog",
+      "produced_items",
+      "order_items"
+    ],
+    "result_rows": [
+      {
+        "product": "Slate Dock",
+        "total_revenue": 223802.88
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 208001.58000000002
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 199737.12
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 184620.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 177039.72
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 161249.28
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 155710.68
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 140604.42
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 135750.0
+      },
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 121327.92
+      }
+    ],
+    "sql_log": [
+      "SELECT product, SUM(revenue) AS total_revenue FROM sales GROUP BY product ORDER BY total_revenue DESC LIMIT 10;"
+    ]
+  },
+  {
+    "model": "gpt-oss-20b",
+    "level": "full",
+    "qid": "q4_why_q3_weak",
+    "repeat": 1,
+    "question": "Why were Q3 sales weak?",
+    "expected_value": null,
+    "table_recall": 0.5,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": null,
+    "latency": 28.31,
+    "tables_retrieved": [
+      "sales_forecast",
+      "sales",
+      "revenue_targets",
+      "refunds",
+      "inventory",
+      "customers"
+    ],
+    "result_rows": [
+      {
+        "id": 1,
+        "month": "sales_forecast_0",
+        "forecast_revenue": "sales_forecast_0"
+      },
+      {
+        "id": 2,
+        "month": "sales_forecast_1",
+        "forecast_revenue": "sales_forecast_1"
+      },
+      {
+        "id": 3,
+        "month": "sales_forecast_2",
+        "forecast_revenue": "sales_forecast_2"
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(revenue) AS total_revenue, SUM(quantity) AS total_quantity FROM sales WHERE sale_date BETWEEN '2024-07-01' AND '2024-09-30';",
+      "SELECT * FROM sales_forecast LIMIT 5;"
+    ]
+  },
+  {
+    "model": "gpt-oss-20b",
+    "level": "full",
+    "qid": "q5_margin",
+    "repeat": 1,
+    "question": "What was our gross margin by quarter?",
+    "expected_value": null,
+    "table_recall": 0.0,
+    "chart_ok": false,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": null,
+    "latency": 37.88,
+    "tables_retrieved": [
+      "revenue_targets",
+      "categories",
+      "inventory",
+      "manufacturing",
+      "sales_forecast",
+      "produced_items"
+    ],
+    "result_rows": [],
+    "sql_log": []
+  },
+  {
+    "_summary": true,
+    "model": "gpt-oss-20b",
+    "level": "full",
+    "table_recall": 0.7,
+    "chart_ok_rate": 0.8,
+    "docs_ok_rate": 1.0,
+    "answer_correct_rate": null,
+    "answer_graded_n": 0,
+    "avg_errors": 0.0,
+    "avg_latency_s": 26.87
+  }
+]

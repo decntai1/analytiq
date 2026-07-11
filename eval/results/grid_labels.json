@@ -1,0 +1,478 @@
+{
+  "_meta": {
+    "gate": "Phase 3 thesis gate \u2014 labels-ON vs labels-OFF schema-RAG retrieval A/B",
+    "gold": "gold/gold_set.json (5 items)",
+    "labeller_model": "gpt-oss-20b",
+    "labels_generated_at": "2026-07-11T07:45:51Z",
+    "runtime_embedder": "minishlab/potion-base-8M (EMBEDDING_MODE=model2vec, product default)",
+    "models_empirical": [
+      "ministral-8b",
+      "gpt-oss-20b"
+    ],
+    "level": "full",
+    "toggle": "SCHEMA_LABELS_PATH set(ON)/unset(OFF) \u2014 enrichment is retrieval-only",
+    "pass_conditions": {
+      "A_recall_improves_on_confusable_traps": {
+        "met": false,
+        "detail": "aggregate recall 0.70 -> 0.70 on potion-base-8M; the two trap misses (q4 produced_items, q5 sales) persist. Directionally positive (q5 sales rank 15->11) and recovers q2 returns on potion-retrieval-32M (0.60->0.70), but the 0.70 ceiling is NOT broken."
+      },
+      "B_retrieval_model_independent": {
+        "met": true,
+        "detail": "tables_retrieved BYTE-IDENTICAL across ministral-8b (8B) and gpt-oss-20b (20B) in BOTH arms. Guaranteed by construction (relevant_tables never sees the model) and confirmed empirically. Nothing re-coupled."
+      }
+    },
+    "verdict": "GATE STOP-CONDITION (B) NOT TRIGGERED \u2014 model-independence holds. Target A (break 0.70) NOT met: frozen labels shift retrieval in the right direction but do not clear the two hardest confusable/reasoning-retrieval traps with torch-free static embeddings."
+  },
+  "empirical_grid": {
+    "labels_off": {
+      "summary": [
+        {
+          "_summary": true,
+          "model": "ministral-8b",
+          "level": "full",
+          "table_recall": 0.7,
+          "chart_ok_rate": 0.8,
+          "docs_ok_rate": 1.0,
+          "answer_correct_rate": null,
+          "answer_graded_n": 0,
+          "avg_errors": 2.0,
+          "avg_latency_s": 16.34
+        },
+        {
+          "_summary": true,
+          "model": "gpt-oss-20b",
+          "level": "full",
+          "table_recall": 0.7,
+          "chart_ok_rate": 0.8,
+          "docs_ok_rate": 1.0,
+          "answer_correct_rate": null,
+          "answer_graded_n": 0,
+          "avg_errors": 0.0,
+          "avg_latency_s": 26.87
+        }
+      ],
+      "per_item_model_independent": {
+        "q1_monthly_revenue": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved": [
+            "sales",
+            "sales_forecast",
+            "returns",
+            "revenue_targets",
+            "produced_items",
+            "invoices"
+          ],
+          "recall": 1.0
+        },
+        "q2_net_revenue_trap": {
+          "expected": [
+            "sales",
+            "returns"
+          ],
+          "retrieved": [
+            "revenue_targets",
+            "sales",
+            "sales_forecast",
+            "returns",
+            "warehouses",
+            "invoices"
+          ],
+          "recall": 1.0
+        },
+        "q3_top_products": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved": [
+            "sales",
+            "revenue_targets",
+            "sales_forecast",
+            "product_catalog",
+            "produced_items",
+            "order_items"
+          ],
+          "recall": 1.0
+        },
+        "q4_why_q3_weak": {
+          "expected": [
+            "sales",
+            "produced_items"
+          ],
+          "retrieved": [
+            "sales_forecast",
+            "sales",
+            "revenue_targets",
+            "refunds",
+            "inventory",
+            "customers"
+          ],
+          "recall": 0.5
+        },
+        "q5_margin": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved": [
+            "revenue_targets",
+            "categories",
+            "inventory",
+            "manufacturing",
+            "sales_forecast",
+            "produced_items"
+          ],
+          "recall": 0.0
+        }
+      }
+    },
+    "labels_on": {
+      "summary": [
+        {
+          "_summary": true,
+          "model": "ministral-8b",
+          "level": "full",
+          "table_recall": 0.7,
+          "chart_ok_rate": 0.8,
+          "docs_ok_rate": 1.0,
+          "answer_correct_rate": null,
+          "answer_graded_n": 0,
+          "avg_errors": 2.2,
+          "avg_latency_s": 14.93
+        },
+        {
+          "_summary": true,
+          "model": "gpt-oss-20b",
+          "level": "full",
+          "table_recall": 0.7,
+          "chart_ok_rate": 0.8,
+          "docs_ok_rate": 1.0,
+          "answer_correct_rate": null,
+          "answer_graded_n": 0,
+          "avg_errors": 0.0,
+          "avg_latency_s": 21.95
+        }
+      ],
+      "per_item_model_independent": {
+        "q1_monthly_revenue": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved": [
+            "sales_forecast",
+            "sales",
+            "revenue_targets",
+            "produced_items",
+            "returns",
+            "invoices"
+          ],
+          "recall": 1.0
+        },
+        "q2_net_revenue_trap": {
+          "expected": [
+            "sales",
+            "returns"
+          ],
+          "retrieved": [
+            "revenue_targets",
+            "sales",
+            "sales_forecast",
+            "returns",
+            "invoices",
+            "warehouses"
+          ],
+          "recall": 1.0
+        },
+        "q3_top_products": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved": [
+            "sales",
+            "revenue_targets",
+            "sales_forecast",
+            "product_catalog",
+            "order_items",
+            "returns"
+          ],
+          "recall": 1.0
+        },
+        "q4_why_q3_weak": {
+          "expected": [
+            "sales",
+            "produced_items"
+          ],
+          "retrieved": [
+            "sales",
+            "sales_forecast",
+            "revenue_targets",
+            "inventory",
+            "refunds",
+            "promotions"
+          ],
+          "recall": 0.5
+        },
+        "q5_margin": {
+          "expected": [
+            "sales"
+          ],
+          "retrieved": [
+            "revenue_targets",
+            "produced_items",
+            "inventory",
+            "manufacturing",
+            "sales_forecast",
+            "categories"
+          ],
+          "recall": 0.0
+        }
+      }
+    }
+  },
+  "deterministic_embedder_matrix": {
+    "minishlab/potion-base-8M": {
+      "off": {
+        "per_item": {
+          "q1_monthly_revenue": {
+            "retrieved": [
+              "sales",
+              "sales_forecast",
+              "returns",
+              "revenue_targets",
+              "produced_items",
+              "invoices"
+            ],
+            "recall": 1.0
+          },
+          "q2_net_revenue_trap": {
+            "retrieved": [
+              "revenue_targets",
+              "sales",
+              "sales_forecast",
+              "returns",
+              "warehouses",
+              "invoices"
+            ],
+            "recall": 1.0
+          },
+          "q3_top_products": {
+            "retrieved": [
+              "sales",
+              "revenue_targets",
+              "sales_forecast",
+              "product_catalog",
+              "produced_items",
+              "order_items"
+            ],
+            "recall": 1.0
+          },
+          "q4_why_q3_weak": {
+            "retrieved": [
+              "sales_forecast",
+              "sales",
+              "revenue_targets",
+              "refunds",
+              "inventory",
+              "customers"
+            ],
+            "recall": 0.5
+          },
+          "q5_margin": {
+            "retrieved": [
+              "revenue_targets",
+              "categories",
+              "inventory",
+              "manufacturing",
+              "sales_forecast",
+              "produced_items"
+            ],
+            "recall": 0.0
+          }
+        },
+        "avg_recall": 0.7
+      },
+      "on": {
+        "per_item": {
+          "q1_monthly_revenue": {
+            "retrieved": [
+              "sales_forecast",
+              "sales",
+              "revenue_targets",
+              "produced_items",
+              "returns",
+              "invoices"
+            ],
+            "recall": 1.0
+          },
+          "q2_net_revenue_trap": {
+            "retrieved": [
+              "revenue_targets",
+              "sales",
+              "sales_forecast",
+              "returns",
+              "invoices",
+              "warehouses"
+            ],
+            "recall": 1.0
+          },
+          "q3_top_products": {
+            "retrieved": [
+              "sales",
+              "revenue_targets",
+              "sales_forecast",
+              "product_catalog",
+              "order_items",
+              "returns"
+            ],
+            "recall": 1.0
+          },
+          "q4_why_q3_weak": {
+            "retrieved": [
+              "sales",
+              "sales_forecast",
+              "revenue_targets",
+              "inventory",
+              "refunds",
+              "promotions"
+            ],
+            "recall": 0.5
+          },
+          "q5_margin": {
+            "retrieved": [
+              "revenue_targets",
+              "produced_items",
+              "inventory",
+              "manufacturing",
+              "sales_forecast",
+              "categories"
+            ],
+            "recall": 0.0
+          }
+        },
+        "avg_recall": 0.7
+      }
+    },
+    "minishlab/potion-retrieval-32M": {
+      "off": {
+        "per_item": {
+          "q1_monthly_revenue": {
+            "retrieved": [
+              "sales",
+              "sales_forecast",
+              "returns",
+              "revenue_targets",
+              "campaigns",
+              "subscriptions"
+            ],
+            "recall": 1.0
+          },
+          "q2_net_revenue_trap": {
+            "retrieved": [
+              "revenue_targets",
+              "sales_forecast",
+              "sales",
+              "customers",
+              "refunds",
+              "invoices"
+            ],
+            "recall": 0.5
+          },
+          "q3_top_products": {
+            "retrieved": [
+              "revenue_targets",
+              "sales",
+              "product_catalog",
+              "sales_forecast",
+              "customers",
+              "inventory"
+            ],
+            "recall": 1.0
+          },
+          "q4_why_q3_weak": {
+            "retrieved": [
+              "sales_forecast",
+              "sales",
+              "revenue_targets",
+              "inventory",
+              "purchase_orders",
+              "employees"
+            ],
+            "recall": 0.5
+          },
+          "q5_margin": {
+            "retrieved": [
+              "revenue_targets",
+              "sales_forecast",
+              "reviews",
+              "payments",
+              "regions",
+              "invoices"
+            ],
+            "recall": 0.0
+          }
+        },
+        "avg_recall": 0.6
+      },
+      "on": {
+        "per_item": {
+          "q1_monthly_revenue": {
+            "retrieved": [
+              "sales_forecast",
+              "sales",
+              "revenue_targets",
+              "subscriptions",
+              "returns",
+              "campaigns"
+            ],
+            "recall": 1.0
+          },
+          "q2_net_revenue_trap": {
+            "retrieved": [
+              "revenue_targets",
+              "sales_forecast",
+              "sales",
+              "returns",
+              "invoices",
+              "customers"
+            ],
+            "recall": 1.0
+          },
+          "q3_top_products": {
+            "retrieved": [
+              "sales",
+              "revenue_targets",
+              "sales_forecast",
+              "product_catalog",
+              "order_items",
+              "inventory"
+            ],
+            "recall": 1.0
+          },
+          "q4_why_q3_weak": {
+            "retrieved": [
+              "sales",
+              "sales_forecast",
+              "inventory",
+              "revenue_targets",
+              "purchase_orders",
+              "order_items"
+            ],
+            "recall": 0.5
+          },
+          "q5_margin": {
+            "retrieved": [
+              "revenue_targets",
+              "sales_forecast",
+              "reviews",
+              "payments",
+              "invoices",
+              "regions"
+            ],
+            "recall": 0.0
+          }
+        },
+        "avg_recall": 0.7
+      }
+    }
+  }
+}

@@ -1,0 +1,310 @@
+{
+  "_meta": {
+    "labeller_model": "gpt-oss-20b",
+    "db_url": "sqlite:////work/ecommerce_large.db",
+    "generated_by": "eval/label.py run_labelling",
+    "generated_at": "2026-07-11T07:45:51Z",
+    "table_count": 27,
+    "labelled_count": 27,
+    "frozen": true,
+    "note": "Frozen offline labels for schema-RAG. Regenerate deliberately; never per-query. See index/labels.py."
+  },
+  "tables": {
+    "campaigns": {
+      "summary": "Tracks marketing campaigns, their channels, spend, and start dates to analyze marketing performance.",
+      "grain": "one row per campaign",
+      "distinct_from": "promotions – promotions track discount codes and active status, whereas campaigns track spend and channel information",
+      "key_columns": [
+        "id",
+        "name",
+        "channel",
+        "spend",
+        "start_date"
+      ]
+    },
+    "categories": {
+      "summary": "Stores the hierarchy of product categories used for cataloging items.",
+      "grain": "one row per category",
+      "distinct_from": "product_catalog, vendors – categories contains parent hierarchy while those tables only reference category names",
+      "key_columns": [
+        "id",
+        "name",
+        "parent"
+      ]
+    },
+    "customers": {
+      "summary": "Stores customer demographic and contact information for analysis of customer base and signup trends.",
+      "grain": "one row per customer",
+      "key_columns": [
+        "id",
+        "email",
+        "region",
+        "signup_date"
+      ]
+    },
+    "employees": {
+      "summary": "Stores employee records, including personal details, department assignment, hire date, and salary.",
+      "grain": "one row per employee",
+      "distinct_from": "customers – employees include department, hire_date, salary whereas customers include email, region, signup_date",
+      "key_columns": [
+        "id",
+        "department",
+        "salary",
+        "hire_date"
+      ]
+    },
+    "inventory": {
+      "summary": "Tracks current stock levels of each product at each warehouse",
+      "grain": "one row per product per warehouse",
+      "distinct_from": "produced_items – records production events, not current stock levels",
+      "key_columns": [
+        "id",
+        "product",
+        "warehouse",
+        "units_on_hand"
+      ]
+    },
+    "invoices": {
+      "summary": "Tracks invoices issued to customers, including amount and status, for billing and revenue analysis.",
+      "grain": "one row per invoice",
+      "distinct_from": "orders – invoices are billing documents while orders represent purchase transactions",
+      "key_columns": [
+        "id",
+        "customer_id",
+        "issued_date",
+        "amount",
+        "status"
+      ]
+    },
+    "manufacturing": {
+      "summary": "Tracks daily production output per plant, enabling analysis of manufacturing throughput.",
+      "grain": "one row per plant per run date (production run).",
+      "distinct_from": "produced_items – produced_items records individual items produced, whereas manufacturing aggregates output by plant and date.",
+      "key_columns": [
+        "id",
+        "plant",
+        "run_date",
+        "output_units"
+      ]
+    },
+    "order_items": {
+      "summary": "Tracks individual products and quantities within each customer order, enabling analysis of order composition and item-level revenue.",
+      "grain": "one row per order line (each product in an order).",
+      "distinct_from": "orders – orders aggregates totals, while order_items provides line‑item detail.",
+      "key_columns": [
+        "order_id",
+        "product",
+        "qty",
+        "price"
+      ]
+    },
+    "orders": {
+      "summary": "Tracks individual customer orders and their total amounts.",
+      "grain": "one row per order",
+      "distinct_from": "invoices – orders record the purchase itself, while invoices record the billing statement for a customer",
+      "key_columns": [
+        "id",
+        "user_id",
+        "order_date",
+        "total"
+      ]
+    },
+    "payments": {
+      "summary": "Tracks individual payment transactions for orders, enabling analysis of payment methods, amounts, and dates.",
+      "grain": "one row per payment transaction",
+      "distinct_from": "orders (records order details, not payment), refunds (records refund amounts, not original payment)",
+      "key_columns": [
+        "id",
+        "order_id",
+        "method",
+        "amount",
+        "paid_date"
+      ]
+    },
+    "produced_items": {
+      "summary": "Tracks the quantity of each product produced on each production date, enabling analysis of manufacturing output and inventory replenishment.",
+      "grain": "one row per item per production date",
+      "distinct_from": "inventory (stock levels), manufacturing (plant output)",
+      "key_columns": [
+        "produced_date",
+        "item",
+        "units_produced"
+      ]
+    },
+    "product_catalog": {
+      "summary": "Provides the list of products, their categories, and list prices for pricing and cataloging purposes.",
+      "grain": "one row per product",
+      "distinct_from": "categories (contains category hierarchy, not product details); inventory (contains stock levels, not list price)",
+      "key_columns": [
+        "id",
+        "product",
+        "category",
+        "list_price"
+      ]
+    },
+    "promotions": {
+      "summary": "Stores promotional codes, their discount percentages, and active status for marketing campaigns.",
+      "grain": "one row per promotion",
+      "distinct_from": "campaigns – campaigns track spend and channel, while promotions track discount codes and percentages",
+      "key_columns": [
+        "id",
+        "code",
+        "discount_pct",
+        "active"
+      ]
+    },
+    "purchase_orders": {
+      "summary": "Track procurement orders placed to suppliers, including order date and amount.",
+      "grain": "one row per purchase order",
+      "distinct_from": "orders – purchase_orders record supplier orders, not customer orders; invoices – purchase_orders are procurement orders, invoices are customer billing",
+      "key_columns": [
+        "id",
+        "supplier_id",
+        "po_date",
+        "amount"
+      ]
+    },
+    "refunds": {
+      "summary": "Track monetary refunds issued for each order",
+      "grain": "one row per refund transaction",
+      "distinct_from": "returns – refunds are linked to orders, returns are product-level",
+      "key_columns": [
+        "id",
+        "order_id",
+        "refund_date",
+        "amount"
+      ]
+    },
+    "regions": {
+      "summary": "Stores geographic region identifiers, names, and associated countries for use in regional segmentation and reporting.",
+      "grain": "one row per region",
+      "distinct_from": "customers (region column is a customer’s region, not a master list of regions)",
+      "key_columns": [
+        "id",
+        "name",
+        "country"
+      ]
+    },
+    "returns": {
+      "summary": "Tracks individual product return transactions to analyze return volume and revenue impact.",
+      "grain": "one row per return transaction",
+      "distinct_from": "refunds – refunds are linked to orders, whereas returns record product-level return details",
+      "key_columns": [
+        "id",
+        "return_date",
+        "product",
+        "amount"
+      ]
+    },
+    "revenue_targets": {
+      "summary": "Defines the revenue target for each quarter to guide financial planning.",
+      "grain": "one row per quarter target",
+      "distinct_from": "sales_forecast – uses month and forecast_revenue instead of quarter and target",
+      "key_columns": [
+        "id",
+        "quarter",
+        "target"
+      ]
+    },
+    "reviews": {
+      "summary": "Stores individual product reviews, including rating and date, to analyze customer feedback.",
+      "grain": "one row per review",
+      "key_columns": [
+        "id",
+        "product",
+        "rating",
+        "review_date"
+      ]
+    },
+    "sales": {
+      "summary": "Track daily product sales revenue and cost to analyze profitability.",
+      "grain": "one row per sale transaction (product sold on a specific date).",
+      "distinct_from": "order_items – sales records actual sale transactions with revenue and cost, whereas order_items records order line items.",
+      "key_columns": [
+        "id",
+        "sale_date",
+        "product",
+        "quantity",
+        "revenue",
+        "cost"
+      ]
+    },
+    "sales_forecast": {
+      "summary": "Provides forecasted revenue amounts for each month.",
+      "grain": "one row per month",
+      "distinct_from": "revenue_targets (quarterly target vs monthly forecast)",
+      "key_columns": [
+        "id",
+        "month",
+        "forecast_revenue"
+      ]
+    },
+    "shipments": {
+      "summary": "Tracks shipping events for orders, including date, carrier, and status.",
+      "grain": "one row per shipment event",
+      "distinct_from": "orders (shipments record shipping details, orders record order placement)",
+      "key_columns": [
+        "id",
+        "order_id",
+        "ship_date",
+        "carrier",
+        "status"
+      ]
+    },
+    "subscriptions": {
+      "summary": "Tracks which plan each customer is subscribed to and when the subscription started.",
+      "grain": "one row per subscription record (customer‑plan start).",
+      "distinct_from": "customers – subscriptions record plan and start date, whereas customers record personal details and signup date.",
+      "key_columns": [
+        "id",
+        "customer_id",
+        "plan",
+        "started_date"
+      ]
+    },
+    "suppliers": {
+      "summary": "Stores information about suppliers, including their lead times and country of origin.",
+      "grain": "one row per supplier",
+      "distinct_from": "vendors – vendors have a category field but no lead_time_days",
+      "key_columns": [
+        "id",
+        "name",
+        "country",
+        "lead_time_days"
+      ]
+    },
+    "tickets": {
+      "summary": "Track customer support tickets to analyze volume, priority, and status over time.",
+      "grain": "one row per ticket",
+      "distinct_from": "customers (tickets contain status and priority, customers contain personal info)",
+      "key_columns": [
+        "id",
+        "customer_id",
+        "opened_date",
+        "priority",
+        "status"
+      ]
+    },
+    "vendors": {
+      "summary": "Provides a master list of vendors and their categories for vendor management and reporting.",
+      "grain": "one row per vendor",
+      "distinct_from": "suppliers – suppliers include country and lead_time_days, vendors include category",
+      "key_columns": [
+        "id",
+        "name",
+        "category"
+      ]
+    },
+    "warehouses": {
+      "summary": "Stores information about each warehouse, including its name, region, and storage capacity, enabling analysis of warehouse distribution and capacity utilization.",
+      "grain": "one row per warehouse",
+      "distinct_from": "inventory – inventory tracks product stock per warehouse, while warehouses lists warehouse details and capacity.",
+      "key_columns": [
+        "id",
+        "name",
+        "region",
+        "capacity"
+      ]
+    }
+  }
+}
