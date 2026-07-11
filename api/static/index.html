@@ -195,6 +195,29 @@
       box-shadow:var(--shadow-sm);cursor:pointer;color:var(--ink)}
     .menubtn svg{width:22px;height:22px}
   }
+
+  /* --- mobile drawer: reprioritized order + collapsible sections + close --- */
+  .drawerclose{display:none}
+  @media (max-width:880px){
+    /* priority: upload & tables first; tools/account lower */
+    .brand{order:0;flex:1;padding:2px 4px}
+    .sec.add{order:1}.sec.ws{order:2}#chatsSection{order:3}
+    .sec.model{order:4}.sec.tools{order:5}#userSection{order:6}#authSection{order:7}
+    .sidefoot{display:none}
+    .drawerclose{position:absolute;top:12px;right:12px;display:grid;place-items:center;
+      width:40px;height:40px;border-radius:10px;background:none;border:0;color:var(--muted);cursor:pointer}
+    .drawerclose:hover{background:var(--line-soft);color:var(--ink)}
+    .drawerclose svg{width:20px;height:20px}
+    /* each slab becomes a tappable collapsible header with a chevron */
+    .slab{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;
+      font-size:11px;margin:0;padding:12px 6px;min-height:44px;border-top:1px solid var(--line-soft)}
+    .slab::after{content:"";width:11px;height:11px;flex:none;
+      background:no-repeat center/contain url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236a818a' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+      transition:transform .18s}
+    .sec.collapsed .slab::after{transform:rotate(-90deg)}
+    .sec.collapsed > *:not(.slab){display:none}
+    .sec{gap:8px}
+  }
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}  /* inference settings drawer */
 
   /* --- mobile base: kill iOS focus-zoom (inputs >=16px) + >=44px touch targets --- */
@@ -285,8 +308,9 @@
 <div class="app">
   <aside class="sidebar" id="sidebar">
     <a class="brand" href="/" style="text-decoration:none"><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M10 19V5M16 19v-6M22 19H2"/></svg></span><span class="name">analyt<b>iq</b></span></a>
+    <button class="drawerclose" id="menuClose" aria-label="Close menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
 
-    <div class="sec">
+    <div class="sec ws">
       <div class="slab">Workspace</div>
       <div class="datacard">
         <div class="row"><span class="lab"><span class="dot"></span>Tables</span><span class="val" id="tblCount">—</span></div>
@@ -295,7 +319,7 @@
       </div>
     </div>
 
-    <div class="sec">
+    <div class="sec add">
       <div class="slab">Add data</div>
       <input type="file" id="file" hidden accept=".csv,.parquet,.xlsx,.xls,.pdf,.txt,.md">
       <button class="btn full" id="upBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Upload a table or document</button>
@@ -303,13 +327,13 @@
       <div id="dataList" style="margin-top:8px"></div>
     </div>
 
-    <div class="sec">
+    <div class="sec tools collapsed">
       <div class="slab">Tools</div>
       <a class="btn full" href="/workbench" style="text-decoration:none;margin-bottom:8px" title="Clean &amp; reshape your tables — advise-only, sources never mutated"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Data workbench</a>
       <a class="btn full" href="/dashboard" style="text-decoration:none" title="Pinned charts that refresh without re-asking the model"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Dashboards</a>
     </div>
 
-    <div class="sec model">
+    <div class="sec model collapsed">
       <div class="slab">Model</div>
       <div class="field"><select id="model"></select></div>
       <button class="btn full" id="cfgBtn" style="margin-top:8px" title="Calibrate sampling settings (temperature, top-p, …)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Inference settings</button>
@@ -320,7 +344,7 @@
       <div class="field"><input class="keyinput" id="apikey" type="password" placeholder="Paste your key" autocomplete="off"></div>
     </div>
 
-    <div class="sec" id="userSection" style="display:none">
+    <div class="sec collapsed" id="userSection" style="display:none">
       <div class="slab">Account</div>
       <div class="ucard">
         <div class="uline" id="uEmail">—</div>
@@ -513,6 +537,15 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sidebarEl.classList
 // open for upload / model changes where the user stays put.
 sidebarEl.addEventListener('click',e=>{
   if(e.target.closest('.chatitem, a[href], #newChatBtn'))closeMenu();
+});
+$('menuClose')&&$('menuClose').addEventListener('click',closeMenu);
+// collapsible sections: tap a section header (mobile only). Controls inside a slab
+// (e.g. the Chats "+ New" button) keep their own behaviour and don't toggle.
+sidebarEl.addEventListener('click',e=>{
+  const slab=e.target.closest('.slab');
+  if(!slab||e.target.closest('button,a,select,input'))return;
+  if(!window.matchMedia('(max-width:880px)').matches)return;
+  slab.parentElement.classList.toggle('collapsed');
 });
 
 // ---- profile & billing drawer -------------------------------------------
