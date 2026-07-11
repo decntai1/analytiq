@@ -15,7 +15,7 @@ import os
 
 import config
 from connectors.base import StructuredConnector
-from connectors.duckdb_conn import DuckDBConnector
+from connectors.duckdb_conn import DuckDBConnector, analytics_db_path
 from connectors.multi import MultiConnector
 from connectors.sql import SQLConnector
 
@@ -29,7 +29,8 @@ def ensure_upload_store(base: StructuredConnector, upload_dir: str) -> Structure
     files into (.env.demo's exact posture: DATA_SOURCE=database + uploads on).
     """
     os.makedirs(upload_dir, exist_ok=True)
-    return MultiConnector([base, DuckDBConnector(data_dir=upload_dir)])
+    return MultiConnector([base, DuckDBConnector(
+        data_dir=upload_dir, db_path=analytics_db_path(upload_dir, "analytics_uploads.duckdb"))])
 
 
 def build_connector() -> StructuredConnector:
@@ -42,11 +43,13 @@ def build_connector() -> StructuredConnector:
 
     if mode == "upload":
         os.makedirs(s.upload_dir, exist_ok=True)
-        return DuckDBConnector(data_dir=s.upload_dir)
+        return DuckDBConnector(data_dir=s.upload_dir,
+                               db_path=analytics_db_path(s.upload_dir, "analytics.duckdb"))
 
     if mode == "files":
         os.makedirs(s.data_dir, exist_ok=True)
-        base = DuckDBConnector(data_dir=s.data_dir)
+        base = DuckDBConnector(data_dir=s.data_dir,
+                               db_path=analytics_db_path(s.data_dir, "analytics_files.duckdb"))
         return ensure_upload_store(base, s.upload_dir) if s.enable_uploads else base
 
     # "all": merge whatever is configured. Order = DB first, then on-prem files, then uploads.
@@ -57,16 +60,17 @@ def build_connector() -> StructuredConnector:
             sources.append(SQLConnector(s.db_url))
         except Exception:
             pass
-    for d in (s.data_dir, s.upload_dir):
+    for d, name in ((s.data_dir, "analytics_files.duckdb"), (s.upload_dir, "analytics_uploads.duckdb")):
         os.makedirs(d, exist_ok=True)
         try:
-            sources.append(DuckDBConnector(data_dir=d))
+            sources.append(DuckDBConnector(data_dir=d, db_path=analytics_db_path(d, name)))
         except Exception:
             pass
     if not sources:
         # nothing configured yet — empty DuckDB so the app still boots
         os.makedirs(s.upload_dir, exist_ok=True)
-        sources.append(DuckDBConnector(data_dir=s.upload_dir))
+        sources.append(DuckDBConnector(
+            data_dir=s.upload_dir, db_path=analytics_db_path(s.upload_dir, "analytics_uploads.duckdb")))
     return MultiConnector(sources)
 
 

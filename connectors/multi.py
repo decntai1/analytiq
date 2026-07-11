@@ -33,3 +33,11 @@ class MultiConnector(StructuredConnector):
             if table.lower() in lowered:
                 return src.run_query(query)
         return self.sources[0].run_query(query)
+
+    def close(self) -> None:
+        """Best-effort close every source that supports it (file-backed DuckDB
+        stores release their file lock; SQL connectors have nothing to close)."""
+        for src in self.sources:
+            closer = getattr(src, "close", None)
+            if callable(closer):
+                closer()

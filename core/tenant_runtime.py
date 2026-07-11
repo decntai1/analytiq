@@ -13,7 +13,7 @@ import os
 import threading
 
 import config
-from connectors.duckdb_conn import DuckDBConnector
+from connectors.duckdb_conn import DuckDBConnector, analytics_db_path
 from connectors.factory import build_connector
 from connectors.multi import MultiConnector
 from connectors.sql import SQLConnector
@@ -82,25 +82,31 @@ class TenantRuntime:
     def _build_tenant_connector(t: Tenant) -> StructuredConnector:
         from connectors.factory import ensure_upload_store
         mode = t.data_source
+        # per-tenant file-backed DuckDB lives in the tenant root (parent of the store
+        # dir): tenants_root/<tid>/analytics*.duckdb. One file per store so a tenant
+        # with several stores never collides (DuckDB is single-writer per file).
         if mode == "database":
             base = SQLConnector(t.db_url)
             return ensure_upload_store(base, t.upload_dir()) if t.enable_uploads else base
         if mode == "upload":
-            return DuckDBConnector(data_dir=t.upload_dir())
+            return DuckDBConnector(data_dir=t.upload_dir(),
+                                   db_path=analytics_db_path(t.upload_dir(), "analytics.duckdb"))
         if mode == "files":
-            base = DuckDBConnector(data_dir=t.data_dir())
+            base = DuckDBConnector(data_dir=t.data_dir(),
+                                   db_path=analytics_db_path(t.data_dir(), "analytics_files.duckdb"))
             return ensure_upload_store(base, t.upload_dir()) if t.enable_uploads else base
         # all
         srcs: list[StructuredConnector] = []
         if t.db_url:
             try: srcs.append(SQLConnector(t.db_url))
             except Exception: pass
-        for d in (t.data_dir(), t.upload_dir()):
+        for d, name in ((t.data_dir(), "analytics_files.duckdb"), (t.upload_dir(), "analytics_uploads.duckdb")):
             os.makedirs(d, exist_ok=True)
-            try: srcs.append(DuckDBConnector(data_dir=d))
+            try: srcs.append(DuckDBConnector(data_dir=d, db_path=analytics_db_path(d, name)))
             except Exception: pass
         if not srcs:
-            srcs.append(DuckDBConnector(data_dir=t.upload_dir()))
+            srcs.append(DuckDBConnector(data_dir=t.upload_dir(),
+                                        db_path=analytics_db_path(t.upload_dir(), "analytics.duckdb")))
         return MultiConnector(srcs)
 
     def get(self, tenant: Tenant | None) -> TenantContext:
@@ -113,4 +119,11 @@ class TenantRuntime:
     def invalidate(self, tenant: Tenant | None) -> None:
         key = tenant.tenant_id if tenant else "default"
         with self._lock:
-            self._cache.pop(key, None)
+            ctx = self._cache.pop(key, None)
+        # Close OUTSIDE the runtime lock. File-backed DuckDB is single-writer per
+        # file, so the evicted connector must release its handle before get() opens
+        # a fresh one on the same path; :memory: connectors just no-op.
+        if ctx is not None:
+            closer = getattr(ctx.connector, "close", None)
+            if callable(closer):
+                closer()

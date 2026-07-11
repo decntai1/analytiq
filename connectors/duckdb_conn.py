@@ -26,8 +26,19 @@ _WRITE = re.compile(
 )
 
 
+def analytics_db_path(data_dir: str, name: str) -> str:
+    """Path of the persistent DuckDB file for a store rooted at data_dir.
+
+    Placed in the PARENT of data_dir (the tenant root, for a tenant store) so the
+    upload re-scan — which globs *.csv/*.parquet/*.xlsx INSIDE data_dir — never
+    picks it up, and named per-store (analytics.duckdb / analytics_files.duckdb /
+    analytics_uploads.duckdb) so a tenant with several stores never collides on a
+    single file (DuckDB is single-writer per file)."""
+    return os.path.join(os.path.dirname(os.path.realpath(data_dir)), name)
+
+
 class DuckDBConnector(StructuredConnector):
-    def __init__(self, data_dir: str | None = None) -> None:
+    def __init__(self, data_dir: str | None = None, db_path: str | None = None) -> None:
         import duckdb
         # ONE re-entrant lock serializes every touch of self.con AND the shared
         # Python state (_views/_ts_hints/_source_of/last_ingest). A DuckDB
@@ -39,7 +50,15 @@ class DuckDBConnector(StructuredConnector):
         # Python-side mutations that a cursor would leave unguarded. RLock so a
         # locked public method can call another (register_file -> _load_csv, etc.).
         self._lock = threading.RLock()
-        self.con = duckdb.connect(database=":memory:")
+        # db_path=None -> in-memory (tests, workbench throwaway, ingest suite). A real
+        # path -> file-backed: DuckDB pages tables to disk instead of pinning every
+        # uploaded table in RAM (RAM is the binding constraint on this box), and the
+        # store survives a restart. Single-writer per file, so each store gets its OWN
+        # file (see analytics_db_path); one process holds one handle to it.
+        self._db_path = db_path or ":memory:"
+        if self._db_path != ":memory:":
+            os.makedirs(os.path.dirname(os.path.abspath(self._db_path)) or ".", exist_ok=True)
+        self.con = duckdb.connect(database=self._db_path)
         self.data_dir = data_dir or os.getenv("DUCKDB_DIR", "./data")
         self._views: list[str] = []
         self._ts_hints: dict[str, dict] = {}   # view -> {col: strptime_format} (cached)
@@ -131,6 +150,16 @@ class DuckDBConnector(StructuredConnector):
         if _WRITE.search(q):
             raise ValueError("Query contains a forbidden keyword.")
 
+    def close(self) -> None:
+        """Release the DuckDB connection (and its file lock, when file-backed) so a
+        fresh connect to the same file can succeed within this process. Best-effort
+        and idempotent — used by TenantRuntime.invalidate before a rebuild."""
+        with self._lock:
+            try:
+                self.con.close()
+            except Exception:
+                pass
+
     def run_query(self, query: str) -> QueryResult:
         self._guard(query)
         limit = settings.sql_row_limit
@@ -197,7 +226,15 @@ class DuckDBConnector(StructuredConnector):
                     body[c] = body[c].map(lambda x: None if pd.isna(x) else str(x))
             view = base if len(raw) == 1 else f"{base}_{self._clean_ident(sheet)}"
             self.con.register(f"_tmp_{view}", body)
-            self.con.execute(f'CREATE OR REPLACE VIEW "{view}" AS SELECT * FROM "_tmp_{view}"')
+            # Materialize as a TABLE (not a VIEW over the registered pandas frame):
+            # a registered relation is process-ephemeral, so a persisted view over it
+            # would dangle after a restart. A table lands in the file, pages to disk,
+            # and survives. Drop the temp registration once copied.
+            self.con.execute(f'CREATE OR REPLACE TABLE "{view}" AS SELECT * FROM "_tmp_{view}"')
+            try:
+                self.con.unregister(f"_tmp_{view}")
+            except Exception:
+                pass
             if view not in self._views:
                 self._views.append(view)
             report.append({"view": view, "sheet": sheet,
