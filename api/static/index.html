@@ -103,7 +103,7 @@
   .dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
   @keyframes bnc{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-4px);opacity:1}}
 
-  .viz{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:14px 0;box-shadow:var(--shadow-sm)}
+  .viz{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:14px 0;box-shadow:var(--shadow-sm);overflow-x:auto}
   .viz .vega{width:100%}
   .viz .cap{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:10px}
   .viz-fail{font-size:13px;color:var(--err)}
@@ -184,6 +184,16 @@
     .deckbtn span{display:none}
   }
   @media (prefers-reduced-motion:reduce){*{animation:none!important}}  /* inference settings drawer */
+
+  /* --- mobile base: kill iOS focus-zoom (inputs >=16px) + >=44px touch targets --- */
+  @media (max-width:880px){
+    textarea,select,.keyinput,.pf input,
+    .param input[type=number],.param input[type=text]{font-size:16px}
+    .btn,.btn-teal,.deckbtn,.actbtn,.tierbtn,.chatnew{min-height:44px}
+    .sendbtn{width:44px;height:44px}
+    .chatitem{padding:11px 12px}
+    .scard{padding:16px}
+  }
   .credchip{position:fixed;top:12px;right:16px;z-index:55;display:none;align-items:center;gap:8px;background:var(--card,#fff);border:1px solid var(--line,#e6eceb);border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;box-shadow:0 2px 10px rgba(12,26,32,.07)}
   .credchip.on{display:flex}.credchip .pl{font-weight:640;color:var(--teal,#0c8c7e)}.credchip .cr{font-family:var(--mono,monospace);color:#3a525c}
   .pf h4{margin:16px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#8a9794}
