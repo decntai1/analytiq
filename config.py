@@ -183,6 +183,13 @@ class Settings:
     scaffold_repair: bool = os.getenv("SCAFFOLD_REPAIR", "1") == "1"      # feed tool errors back for a retry
     scaffold_glossary: bool = os.getenv("SCAFFOLD_GLOSSARY", "1") == "1"  # inject metric definitions
     scaffold_router: bool = os.getenv("SCAFFOLD_ROUTER", "1") == "1"      # intent routing vs. always-structured
+    # DETERMINISTIC glossary→table pinning (retrieval only): when a question matches a
+    # glossary metric, pin the tables named in that metric's FORMULA into the schema
+    # context so they can't be lost to a confusable trap. Default OFF until the eval
+    # result justifies it (see eval/glossary_pin_ab.py); flip to "1" to ship. Like all
+    # scaffolds it's model-independent — the pin is a pure function of (question,
+    # glossary), never the LLM. See index/glossary_pin.py.
+    scaffold_glossary_pin: bool = os.getenv("SCAFFOLD_GLOSSARY_PIN", "0") == "1"
     glossary_path: str = os.getenv("GLOSSARY_PATH", "./glossary.json")
     # Frozen, offline-authored table labels enriching the text schema-RAG embeds
     # (retrieval only — never reaches the SQL prompt). Empty = OFF (behaviour is
@@ -213,7 +220,7 @@ class Settings:
         bits = [
             ("rag", self.scaffold_schema_rag), ("val", self.scaffold_validate_chart),
             ("rep", self.scaffold_repair), ("glo", self.scaffold_glossary),
-            ("rou", self.scaffold_router),
+            ("pin", self.scaffold_glossary_pin), ("rou", self.scaffold_router),
         ]
         on = [name for name, v in bits if v]
         return "+".join(on) if on else "none"
@@ -235,6 +242,7 @@ def apply_scaffold(level: dict) -> None:
         scaffold_validate_chart=level.get("validate_chart", settings.scaffold_validate_chart),
         scaffold_repair=level.get("repair", settings.scaffold_repair),
         scaffold_glossary=level.get("glossary", settings.scaffold_glossary),
+        scaffold_glossary_pin=level.get("glossary_pin", settings.scaffold_glossary_pin),
         scaffold_router=level.get("router", settings.scaffold_router),
     )
 

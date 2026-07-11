@@ -98,6 +98,17 @@ class Orchestrator:
         else:
             # no-retrieval baseline: dump everything (what breaks at 100 tables)
             ctx = "\n".join(by.values())
+        # deterministic glossary pin (retrieval-only, model-independent): a question
+        # naming a glossary metric forces the tables in that metric's FORMULA into
+        # context, so a confusable trap can't lose them. Skips explicit user table-
+        # scope (authoritative) and only pins tables the connector actually has.
+        if not tables and config.settings.scaffold_glossary_pin:
+            from index.glossary_pin import pinned_tables_from_path
+            present = {ln.split()[1] for ln in ctx.splitlines() if ln.startswith("TABLE")}
+            extra = [t for t in pinned_tables_from_path(question, config.settings.glossary_path)
+                     if t in by and t not in present]
+            if extra:
+                ctx = ctx + ("\n" if ctx else "") + "\n".join(by[t] for t in extra)
         # record which tables ended up in context (for the table-recall metric)
         self._last_tables = [ln.split()[1] for ln in ctx.splitlines() if ln.startswith("TABLE")]
         return ctx
