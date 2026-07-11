@@ -46,11 +46,15 @@ from index.schema_index import SchemaIndex
 _VL_TO_NEUTRAL = {"bar": "bar", "line": "line", "area": "area", "point": "scatter", "arc": "pie"}
 
 # the scaffolding levels swept along the x-axis
+# glossary_pin is pinned False on EVERY level: the banked grids were measured pin-less,
+# and prod now runs SCAFFOLD_GLOSSARY_PIN=1 — without the explicit False these levels
+# would inherit the env flag and silently contaminate a re-run. Pinning is measured only
+# by its own A/B (eval/glossary_pin_ab.py), never here.
 LEVELS = {
-    "none":        {"schema_rag": False, "validate_chart": False, "repair": False, "glossary": False, "router": False},
-    "rag":         {"schema_rag": True,  "validate_chart": False, "repair": False, "glossary": False, "router": False},
-    "rag+val+rep": {"schema_rag": True,  "validate_chart": True,  "repair": True,  "glossary": False, "router": True},
-    "full":        {"schema_rag": True,  "validate_chart": True,  "repair": True,  "glossary": True,  "router": True},
+    "none":        {"schema_rag": False, "validate_chart": False, "repair": False, "glossary": False, "glossary_pin": False, "router": False},
+    "rag":         {"schema_rag": True,  "validate_chart": False, "repair": False, "glossary": False, "glossary_pin": False, "router": False},
+    "rag+val+rep": {"schema_rag": True,  "validate_chart": True,  "repair": True,  "glossary": False, "glossary_pin": False, "router": True},
+    "full":        {"schema_rag": True,  "validate_chart": True,  "repair": True,  "glossary": True,  "glossary_pin": False, "router": True},
 }
 
 

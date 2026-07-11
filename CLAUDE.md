@@ -224,8 +224,10 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
     -e DOCS_DIR=/app/eval/demo_docs -T app \
     python -m eval.score --models <ladder> --levels none rag rag+val+rep full
 - GLOSSARY→TABLE PINNING (the deterministic ceiling-breaker) SHIPPED as a retrieval
-  scaffold: `index/glossary_pin.py` + `SCAFFOLD_GLOSSARY_PIN` (config, DEFAULT OFF — not
-  live until the result justifies flipping it). Rule: a question naming a glossary metric
+  scaffold: `index/glossary_pin.py` + `SCAFFOLD_GLOSSARY_PIN` (code default OFF; ENABLED
+  in prod via docker-compose.prod.yml env as of the flip — the eval result justified it).
+  eval/score.py LEVELS pin `glossary_pin:False` on every level so banked grids don't
+  inherit the prod flag. Rule: a question naming a glossary metric
   pins the tables in that metric's FORMULA (`SUM(sales.revenue)` → `sales`) into the schema
   context; pure function of (question, glossary), so retrieval stays model-independent BY
   CONSTRUCTION. Wired in `orchestrator._schema_context` (skips authoritative user table-

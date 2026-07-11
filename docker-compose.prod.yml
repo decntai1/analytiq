@@ -26,6 +26,7 @@ services:
     environment:
       DEPLOY_MODE: cloud
       MULTI_TENANT: "1"
+      SCAFFOLD_GLOSSARY_PIN: "1"   # deterministic glossary→table pin ON (eval: recall 0.70→0.90, q5 clears)
     expose:
       - "8000"                  # internal only; not published to host
     volumes:
