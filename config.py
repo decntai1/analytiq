@@ -90,6 +90,30 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         label="Qwen3-Coder 480B — strong SQL",
     ),
 
+    # --- CODE-SPECIALIST thesis probes (NOT in PLAN_MODELS -> not offered in the
+    #     picker; reachable only by name from the eval harness). Added to answer
+    #     the SPECIALIZATION question: does a code-specialized model clear the
+    #     fan-out (L2b) / join-through (L5b) traps that scale alone did not? All
+    #     three tool-VERIFIED on the free key (eval/probe_toolcap.py). The true
+    #     NL->SQL specialists (sqlcoder, duckdb-nsql) are NOT hosted on Ollama
+    #     Cloud and are completion-only — they need a separate native-format
+    #     harness + local inference, out of scope here. ---
+    "qwen3-coder-next": ModelSpec(
+        "qwen3-coder-next", "openai_compatible", "qwen3-coder-next",
+        "https://ollama.com/v1", "OLLAMA_API_KEY",
+        "Ollama Cloud — Qwen3-Coder-next (code-specialist; eval-only).",
+    ),
+    "devstral-small-24b": ModelSpec(
+        "devstral-small-24b", "openai_compatible", "devstral-small-2:24b",
+        "https://ollama.com/v1", "OLLAMA_API_KEY",
+        "Ollama Cloud — Devstral Small 24B (Mistral code-specialist; eval-only).",
+    ),
+    "devstral-123b": ModelSpec(
+        "devstral-123b", "openai_compatible", "devstral-2:123b",
+        "https://ollama.com/v1", "OLLAMA_API_KEY",
+        "Ollama Cloud — Devstral 123B (Mistral code-specialist; eval-only).",
+    ),
+
     # --- cloud (thesis comparison; bring your keys) ------------------------
     "gpt-4o-mini": ModelSpec(
         "gpt-4o-mini", "openai_compatible", "gpt-4o-mini",

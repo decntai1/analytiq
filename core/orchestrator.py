@@ -142,7 +142,7 @@ class Orchestrator:
             resp = provider.chat(messages, tools=TOOLS)
             if not resp.tool_calls:
                 return self._result(resp.content or "", plan, charts, citations,
-                                    sql_log, errors, model_name)
+                                    sql_log, errors, model_name, last_rows)
 
             messages.append({
                 "role": "assistant",
@@ -169,11 +169,15 @@ class Orchestrator:
                 messages.append({"role": "tool", "tool_call_id": tc.id, "content": content})
 
         return self._result("Step limit reached; partial results.", plan, charts,
-                            citations, sql_log, errors, model_name)
+                            citations, sql_log, errors, model_name, last_rows)
 
-    def _result(self, answer, plan, charts, citations, sql_log, errors, model_name):
+    def _result(self, answer, plan, charts, citations, sql_log, errors, model_name,
+                result_rows=None):
         return {"answer": answer, "plan": plan, "charts": charts, "citations": citations,
                 "sql_log": sql_log, "errors": errors,
+                # rows of the LAST run_sql (what make_chart binds / the answer is built on).
+                # Surfaced so the eval can grade the computed NUMBER, not just "did it run".
+                "result_rows": result_rows or [],
                 "tables_retrieved": getattr(self, "_last_tables", []),
                 "scaffold": config.settings.scaffold_label(),
                 "model": model_name or config.settings.default_model}
