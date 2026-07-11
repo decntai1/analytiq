@@ -9,6 +9,7 @@ retrieval, not a bigger context window, is what makes large schemas tractable.
 from __future__ import annotations
 
 from core.embeddings import Embedder
+from index.labels import load_labels, labelled_schema_texts
 from index.vectorstore import VectorStore
 
 
@@ -18,12 +19,25 @@ class SchemaIndex:
         self._built = False
 
     def build(self, schema_by_table: dict[str, str]) -> None:
-        """schema_by_table: {table_name: 'TABLE t (col type, ...) sample: {...}'}."""
+        """schema_by_table: {table_name: 'TABLE t (col type, ...) sample: {...}'}.
+
+        If config.settings.schema_labels_path points at a valid labels.json, the
+        EMBEDDED text per table is enriched with its analytical purpose / grain /
+        what-it-is-NOT so retrieval discriminates confusable tables. This changes
+        ONLY the embedded string, never metadata["schema"] (what the LLM prompt
+        sees). Absent/empty/malformed labels => byte-identical to the plain build.
+        """
+        from config import settings
+        text_map = None
+        labels = load_labels(settings.schema_labels_path)
+        if labels:
+            text_map = labelled_schema_texts(schema_by_table, labels)
         ids, texts, metas = [], [], []
         for table, desc in schema_by_table.items():
             ids.append(table)
-            # embed table name + columns so semantic match works on either
-            texts.append(f"{table}: {desc}")
+            # embed table name + columns so semantic match works on either;
+            # enriched with frozen labels when configured (retrieval only)
+            texts.append(text_map[table] if text_map else f"{table}: {desc}")
             metas.append({"table": table, "schema": desc})
         if ids:
             self.store.add(ids, texts, metas)

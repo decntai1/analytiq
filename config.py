@@ -184,6 +184,11 @@ class Settings:
     scaffold_glossary: bool = os.getenv("SCAFFOLD_GLOSSARY", "1") == "1"  # inject metric definitions
     scaffold_router: bool = os.getenv("SCAFFOLD_ROUTER", "1") == "1"      # intent routing vs. always-structured
     glossary_path: str = os.getenv("GLOSSARY_PATH", "./glossary.json")
+    # Frozen, offline-authored table labels enriching the text schema-RAG embeds
+    # (retrieval only — never reaches the SQL prompt). Empty = OFF (behaviour is
+    # byte-identical to no labels). See index/labels.py + eval/label.py. The eval
+    # A/B toggles retrieval quality purely by setting/unsetting this path.
+    schema_labels_path: str = os.getenv("SCHEMA_LABELS_PATH", "")
 
     # --- multi-tenancy + security ------------------------------------------
     # MULTI_TENANT=0 (default): single implicit tenant, no auth (on-prem behaviour).
