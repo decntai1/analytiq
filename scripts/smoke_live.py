@@ -177,6 +177,21 @@ CSV_CONTENT = (
 ).encode()
 CSV_ROWS = 6
 
+# A CSV whose columns DuckDB types NATIVELY on the tenant path: an ISO date column
+# -> DATE, a fractional column -> DOUBLE/DECIMAL. The demo DB is sqlite (dates come
+# back as strings), so a query over THIS is the only thing that exercises native
+# date/Decimal objects flowing into the run_sql tool-result / chart json.dumps —
+# the exact path that 500'd ("Object of type date is not JSON serializable") while
+# the suite still passed 32/0 on the string-typed demo DB. Regression gate.
+TYPED_CSV_CONTENT = (
+    "signup_date,region,amount\n"
+    "2024-01-05,North,120.50\n"
+    "2024-02-09,South,90.25\n"
+    "2024-03-14,East,70.00\n"
+    "2024-04-20,West,140.75\n"
+).encode()
+TYPED_CSV_ROWS = 4
+
 
 def build_xlsx_2sheets() -> bytes | None:
     """A genuine 2-sheet workbook via openpyxl (a project dep). None if unavailable."""
@@ -341,6 +356,42 @@ def run(base: str) -> int:
         for name, mid in PAID_MODELS:
             ok, detail = probe_tool_call(key, mid)
             r.check(f"paid model {name} ({mid}) tool-capable", ok, detail)
+
+    # 5c. typed-column /ask → serialization regression gate -------------------
+    # Upload a CSV DuckDB types as DATE + DOUBLE, then ask a CHART question over
+    # the date column. This drives the full tenant chain: upload -> native type
+    # inference -> read-only SQL -> run_sql tool-result json.dumps -> chart render.
+    # The bug this guards: native date/Decimal objects hit a bare json.dumps and
+    # 500'd. A 200 here is the HARD regression assertion (a 500 IS the bug); the
+    # demo-DB check in section 5 can't catch it because sqlite returns dates as
+    # strings. Chart emission stays model-discretionary (retry once -> WARN).
+    print("5c. Typed-column /ask (DATE/DECIMAL) → JSON-serialization regression gate")
+    st, _, raw = c.post_file("/upload", "typed.csv", TYPED_CSV_CONTENT, "text/csv")
+    tup = as_json(raw) or {}
+    tview = tup.get("table")
+    r.check("Typed CSV (date+decimal) uploads and registers",
+            st == 200 and tup.get("ok") and bool(tview), f"table={tview}")
+    tans, tcharts, tst = {}, 0, 0
+    for attempt in range(2):
+        q = (f"Plot amount by signup_date from {tview} as a line chart." if attempt == 0
+             else f"From {tview}, show amount over signup_date. Return a line chart.")
+        tst, _, raw = c.post_json("/ask", {"question": q}, timeout=180)
+        tans = as_json(raw) or {}
+        if tst == 200:
+            asked += 1
+        tcharts = len(tans.get("charts") or [])
+        if tcharts:
+            break
+    # THE gate: querying a native DATE/DECIMAL column must not 500 on serialization.
+    r.check("/ask over a DATE/DECIMAL column returns 200 (not a serialization 500)",
+            tst == 200 and bool((tans.get("answer") or "").strip()),
+            f"status={tst}, answer_len={len((tans.get('answer') or ''))}")
+    if tcharts:
+        r.ok("/ask over typed columns renders a chart", f"charts={tcharts}")
+    else:
+        r.warn("/ask typed-column chart spec",
+                "model returned no chart this run (200+answer ok) — chart emission "
+                "is model-discretionary; the 200 is the regression gate")
 
     # 6. 2-sheet xlsx → both sheets register ----------------------------------
     print("6. Upload 2-sheet .xlsx → both sheets register")

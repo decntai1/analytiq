@@ -133,7 +133,14 @@ are VPS-demo-lineage features absent from this tree: table scope+delete (no
 route) and full account deletion (no endpoint — throwaway accounts persist,
 unique email per run, harmless). The live-model checks spend a little OpenAI
 credit. After it passes, a human still eyeballs the UX (charts render, trace
-reads clearly) — the script proves plumbing, not experience. The model picker is
+reads clearly) — the script proves plumbing, not experience. TWO-BACKENDS RULE
+(learned the hard way): the demo DB is sqlite (dates → strings) but the tenant
+upload path is DuckDB (dates/decimals → NATIVE python objects), so they serialize
+DIFFERENTLY. Any smoke assertion about /ask behavior MUST run against BOTH — a
+sqlite-only check passed 32/0 while `/ask` over an uploaded DATE column 500'd
+("Object of type date is not JSON serializable"). Section 5c uploads a typed CSV
+(DATE+DECIMAL) and asserts /ask returns 200; keep that class of coverage. The
+model picker is
 plan-gated (PLAN_MODELS): Free = ministral-8b only (cheapest tool-capable — Free
 must NOT default to the pricey 120B); paid tiers get the full curated set. Every
 offered model is tool-VERIFIED for run_sql on the Ollama Cloud tier; smoke_live.py

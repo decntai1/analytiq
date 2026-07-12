@@ -28,6 +28,7 @@ import time
 from dataclasses import dataclass
 
 import config
+from core.jsonsafe import json_default
 
 _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
 SESSION_TTL_S = 14 * 24 * 3600  # 14 days
@@ -215,7 +216,8 @@ class AccountStore:
         with self._lock:
             self._db.execute(
                 "INSERT INTO messages(conv_id,role,content,charts,created) VALUES(?,?,?,?,?)",
-                (conv_id, role, content, json.dumps(charts or []), time.time()))
+                (conv_id, role, content, json.dumps(charts or [], default=json_default),
+                 time.time()))
             # first user message becomes the title
             self._db.execute(
                 "UPDATE conversations SET title=? WHERE conv_id=? AND title='New chat' AND ?='user'",

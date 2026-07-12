@@ -31,6 +31,7 @@ from typing import Any
 
 import config
 from connectors.base import StructuredConnector
+from core.jsonsafe import json_default
 from core.llm import get_provider
 from core.router import route
 from core.tools import TOOLS
@@ -227,7 +228,8 @@ class Orchestrator:
                 return "", last_rows, f"SQL error: {e}"
             note = " (truncated)" if qr.truncated else ""
             return (json.dumps({"columns": qr.columns, "rows": qr.rows[:50],
-                                "row_count": len(qr.rows)}) + note, qr.rows, None)
+                                "row_count": len(qr.rows)},
+                               default=json_default) + note, qr.rows, None)
 
         if name == "make_chart":
             if not last_rows:
@@ -252,6 +254,6 @@ class Orchestrator:
             hits = self.doc_index.retrieve(args.get("query", ""), config.settings.doc_top_k)
             for h in hits:
                 citations.append({"source": h["source"], "score": h["score"]})
-            return json.dumps({"passages": hits}), last_rows, None
+            return json.dumps({"passages": hits}, default=json_default), last_rows, None
 
         return "", last_rows, f"Unknown tool: {name}"
