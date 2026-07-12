@@ -279,7 +279,7 @@ PLANS: dict[str, dict] = {
                  "blurb": "For the person who answers everyone's data questions. 300 credits, decks, session memory."},
     "business": {"label": "Team", "credits_month": 3000, "memory": True,  "dedicated_llm": True,  "deck_export": True,  "max_upload_mb": 100,
                  "price": "€940",          "price_note": "per month, up to 10 users",
-                 "blurb": "Your team, your dedicated private model endpoint. 3000 pooled credits."},
+                 "blurb": "Your whole team — 3000 pooled credits and priority throughput."},
 }
 DECK_CREDITS = 10
 
