@@ -131,7 +131,30 @@ class Orchestrator:
 
         schema_ctx = ""
         if plan["arm"] in ("structured", "both"):
-            schema_ctx = self._schema_context(question, tables)
+            by = self.connector.schema_by_table()
+            if not by:
+                # No queryable data connected at all (empty or misconfigured store).
+                # Don't run the model against an empty schema — answer honestly. A
+                # pure document question could still be served, so only hard-stop the
+                # structured arm; 'both' falls through to try search_documents.
+                if plan["arm"] == "structured":
+                    return self._result(
+                        "There's no queryable data connected yet. Upload a CSV or Excel "
+                        "file and I'll be able to answer questions and build charts from it.",
+                        plan, [], [], [], [], model_name, None)
+            else:
+                schema_ctx = self._schema_context(question, tables)
+                if not schema_ctx.strip() and plan["arm"] == "structured":
+                    # Tables exist but none matched (or the user's table-scope picked
+                    # none that are present). Name what IS available instead of letting
+                    # the model flail against an empty schema.
+                    names = sorted(by)
+                    avail = ", ".join(names[:12])
+                    more = "" if len(names) <= 12 else f", +{len(names) - 12} more"
+                    return self._result(
+                        "I couldn't find a table relevant to that question. "
+                        f"Queryable tables: {avail}{more}. Try naming one of them, or rephrase.",
+                        plan, [], [], [], [], model_name, None)
 
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM.format(
