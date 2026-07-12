@@ -330,6 +330,11 @@
       <div class="slab">Add data</div>
       <input type="file" id="file" hidden accept=".csv,.parquet,.xlsx,.xls,.pdf,.txt,.md">
       <button class="btn full" id="upBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Upload a table or document</button>
+      <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+        <label for="upTarget" style="font-size:10.5px;color:#6a818a;flex:none">Into</label>
+        <select id="upTarget" title="Folder new uploads go into" style="flex:1;min-width:0;font-size:11px;padding:4px 6px;border:1px solid var(--line,#e6eceb);border-radius:7px;background:#fff;color:#3a525c;cursor:pointer"></select>
+        <button id="newFolderBtn" title="Create a folder" style="flex:none;font-size:11px;padding:4px 8px;border:1px solid var(--line,#e6eceb);border-radius:7px;background:#fff;color:var(--teal,#0c8c7e);cursor:pointer">＋ Folder</button>
+      </div>
       <div class="upnote" id="upNote"></div>
       <input id="dataSearch" placeholder="Search tables &amp; documents…" autocomplete="off" style="display:none;width:100%;margin-top:8px;padding:6px 9px;font-size:12px;border:1px solid var(--line,#e6eceb);border-radius:8px;box-sizing:border-box">
       <div id="dataList" style="margin-top:8px"></div>
@@ -486,13 +491,40 @@ async function loadTables(){
 // matching scopedTables' "null = all"). Persisting the set — not the DOM — means a
 // re-render or a search-filter re-render restores exactly what the user left checked.
 let unscoped=new Set(), dataFilter='', LAST_TABLES=null;
+// ---- client-side folders (localStorage; no server-side folder concept in this
+// tree — uploads are flat DuckDB tables). Folders are a browser-local grouping:
+// {order:[names], assign:{table:folder}, collapsed:{folder:bool}}. "Delete folder"
+// loops the existing per-table DELETE. Not synced across devices — a convenience.
+const FKEY='aq_folders';
+function loadFolders(){try{const o=JSON.parse(localStorage.getItem(FKEY)||'null');
+  if(o&&Array.isArray(o.order))return{order:o.order,assign:o.assign||{},collapsed:o.collapsed||{}};}catch(_){}
+  return{order:[],assign:{},collapsed:{}};}
+function saveFolders(){try{localStorage.setItem(FKEY,JSON.stringify(FOLDERS));}catch(_){}}
+function folderOf(n){return FOLDERS.assign[n]||null;}
+function newFolder(){const name=(prompt('New folder name:')||'').trim();if(!name)return null;
+  if(!FOLDERS.order.includes(name))FOLDERS.order.push(name);saveFolders();return name;}
+let FOLDERS=loadFolders(), uploadTarget='', KNOWN_TABLES=null, pendingAssign=false;
+// the "upload into" picker — folders only
+function syncUploadTarget(){const s=$('upTarget');if(!s)return;
+  s.innerHTML=['<option value="">(no folder)</option>']
+    .concat(FOLDERS.order.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`)).join('');
+  if(!FOLDERS.order.includes(uploadTarget))uploadTarget='';
+  s.value=uploadTarget;}
 function renderDataList(t){
   const el=$('dataList');if(!el)return;
   LAST_TABLES=t;
   const allT=t.table_details||[],allD=t.documents||[],lim=t.embedding_mode==='test';
-  // forget deselections for tables that no longer exist (deleted/renamed)
+  // forget deselections / folder assignments for tables that no longer exist
   const present=new Set(allT.map(x=>x.name));
   [...unscoped].forEach(n=>{if(!present.has(n))unscoped.delete(n);});
+  let pruned=false;Object.keys(FOLDERS.assign).forEach(n=>{if(!present.has(n)){delete FOLDERS.assign[n];pruned=true;}});
+  // auto-file brand-new tables (just uploaded) into the chosen target folder
+  const names=allT.map(x=>x.name);
+  if(KNOWN_TABLES!==null&&pendingAssign&&uploadTarget){
+    names.forEach(n=>{if(!KNOWN_TABLES.has(n)){FOLDERS.assign[n]=uploadTarget;pruned=true;}});}
+  pendingAssign=false;KNOWN_TABLES=new Set(names);
+  if(pruned)saveFolders();
+  syncUploadTarget();
   // search bar: only worth showing once there's more than one thing to filter
   const srch=$('dataSearch');if(srch)srch.style.display=(allT.length+allD.length)>1?'':'none';
   const q=dataFilter;
@@ -504,12 +536,39 @@ function renderDataList(t){
   const delBtn=(cls,n)=>`<button class="${cls}" data-t="${esc(n)}" title="Delete and remove its file" style="flex:none;background:none;border:none;color:#b04a4a;cursor:pointer;font-size:13px;line-height:1;padding:2px 3px">✕</button>`;
   if(tbls.length){
     h+=hdr('TABLES · QUERYABLE <span style="font-weight:400">— check = in scope, click = preview</span>');
-    for(const x of tbls){const cols=(x.columns||[]).join(', ');
-      h+=`<div style="display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px">`+
-         `<input type="checkbox" class="tblScope" value="${esc(x.name)}" ${unscoped.has(x.name)?'':'checked'} title="Include in queries" style="margin-top:3px;flex:none;cursor:pointer">`+
-         `<span class="tblPrev" data-t="${esc(x.name)}" title="Click to preview rows" style="flex:1;min-width:0;cursor:pointer"><span style="font-weight:600;font-size:12px;color:var(--teal,#0c8c7e)">${esc(x.name)}</span>`+
-         `<span style="display:block;color:#6a818a;font-size:11px;overflow-wrap:anywhere">${(x.rows!=null?x.rows+' rows':'')}${cols?' · '+esc(cols):''}</span></span>`+
-         delBtn('tblDel',x.name)+`</div>`;
+    const tableRow=(x)=>{const cols=(x.columns||[]).join(', ');
+      return `<div style="display:flex;gap:6px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px">`+
+        `<input type="checkbox" class="tblScope" value="${esc(x.name)}" ${unscoped.has(x.name)?'':'checked'} title="Include in queries" style="margin-top:3px;flex:none;cursor:pointer">`+
+        `<span class="tblPrev" data-t="${esc(x.name)}" title="Click to preview rows" style="flex:1;min-width:0;cursor:pointer"><span style="font-weight:600;font-size:12px;color:var(--teal,#0c8c7e)">${esc(x.name)}</span>`+
+        `<span style="display:block;color:#6a818a;font-size:11px;overflow-wrap:anywhere">${(x.rows!=null?x.rows+' rows':'')}${cols?' · '+esc(cols):''}</span></span>`+
+        `<select class="tblMove" data-t="${esc(x.name)}" title="Move to folder" style="flex:none;font-size:10px;max-width:70px;align-self:flex-start;border:1px solid var(--line,#e6eceb);border-radius:6px;color:#6a818a;background:#fff;cursor:pointer">`+
+          ['<option value="">(none)</option>'].concat(FOLDERS.order.map(f=>`<option value="${esc(f)}"${folderOf(x.name)===f?' selected':''}>${esc(f)}</option>`)).concat('<option value=" new">＋ New…</option>').join('')+
+        `</select>`+delBtn('tblDel',x.name)+`</div>`;};
+    const fhead=(f,members)=>{const inS=members.filter(x=>!unscoped.has(x.name)).length;
+      const state=members.length&&inS===members.length?'all':(inS===0?'none':'some');const col=!!FOLDERS.collapsed[f];
+      return `<div style="display:flex;gap:6px;align-items:center;padding:5px 6px;margin-top:8px;background:#f4f8f7;border:1px solid var(--line,#e6eceb);border-radius:8px">`+
+        `<input type="checkbox" class="fScope" data-f="${esc(f)}" data-state="${state}" ${state==='all'?'checked':''} title="Select/clear all in folder" style="flex:none;cursor:pointer">`+
+        `<span class="fCaret" data-f="${esc(f)}" style="flex:1;min-width:0;cursor:pointer;font-weight:600;font-size:12px;color:#3a525c">${col?'▸':'▾'} 📁 ${esc(f)} <span style="font-weight:400;color:#6a818a">· ${members.length}</span></span>`+
+        `<button class="fDel" data-f="${esc(f)}" title="Delete folder and its tables" style="flex:none;background:none;border:none;color:#b04a4a;cursor:pointer;font-size:13px;line-height:1;padding:2px 3px">✕</button></div>`;};
+    // membership from the FULL list; rows shown are the search-filtered ones
+    const memAll={},memVis={};
+    allT.forEach(x=>{const f=folderOf(x.name)||'';(memAll[f]=memAll[f]||[]).push(x);});
+    tbls.forEach(x=>{const f=folderOf(x.name)||'';(memVis[f]=memVis[f]||[]).push(x);});
+    for(const f of FOLDERS.order){
+      const members=memAll[f]||[],vis=memVis[f]||[];
+      if(q&&!vis.length)continue;                 // hide non-matching folders while searching
+      h+=fhead(f,members);
+      if(!FOLDERS.collapsed[f]){h+='<div style="margin-left:9px">'+
+        (vis.length?vis.map(tableRow).join('')
+          :(q?'':`<div style="font-size:11px;color:#9aa8ad;margin:5px 0 0 2px">Empty — set a table’s folder to “${esc(f)}”, or delete it.</div>`))+
+        '</div>';}
+    }
+    const ungAll=memAll['']||[],ungVis=memVis['']||[];
+    if(ungVis.length){
+      if(FOLDERS.order.length){const inS=ungAll.filter(x=>!unscoped.has(x.name)).length;
+        const state=inS===ungAll.length?'all':(inS===0?'none':'some');
+        h+=`<div style="display:flex;gap:6px;align-items:center;padding:5px 6px;margin-top:8px"><input type="checkbox" class="fScope" data-f="" data-state="${state}" ${state==='all'?'checked':''} title="Select/clear all ungrouped" style="flex:none;cursor:pointer"><span style="flex:1;font-size:11px;color:#6a818a;font-weight:600">Ungrouped · ${ungAll.length}</span></div>`;}
+      h+=ungVis.map(tableRow).join('');
     }
   }
   if(docs.length){
@@ -522,6 +581,7 @@ function renderDataList(t){
     ?`<div style="font-size:11.5px;color:#6a818a;margin-top:8px">No tables or documents match “${esc(q)}”.</div>`
     :'<div style="font-size:11.5px;color:#6a818a;margin-top:8px">No data yet. Upload a <b>CSV or Excel</b> file to query it as a table.</div>';
   el.innerHTML=h;
+  el.querySelectorAll('.fScope[data-state="some"]').forEach(cb=>cb.indeterminate=true);
 }
 // which tables the next question is scoped to; null = all (default, no scoping).
 // Driven by the persisted `unscoped` set over ALL known tables — NOT the rendered
@@ -533,9 +593,38 @@ function scopedTables(){
   const checked=all.filter(n=>!unscoped.has(n));
   return checked.length===all.length?null:checked;
 }
-// keep the persisted set in sync as the user ticks/unticks (delegated — survives re-render)
-document.addEventListener('change',e=>{const cb=e.target.closest('.tblScope');if(!cb)return;
-  if(cb.checked)unscoped.delete(cb.value);else unscoped.add(cb.value);});
+// all table/folder change events (delegated — survives re-render)
+document.addEventListener('change',e=>{
+  const cb=e.target.closest('.tblScope');
+  if(cb){if(cb.checked)unscoped.delete(cb.value);else unscoped.add(cb.value);
+    if(LAST_TABLES)renderDataList(LAST_TABLES);return;}   // re-render to update folder tri-state
+  const fs=e.target.closest('.fScope');
+  if(fs){const f=fs.dataset.f;const members=(LAST_TABLES&&LAST_TABLES.table_details||[]).filter(x=>(folderOf(x.name)||'')===f);
+    members.forEach(x=>{if(fs.checked)unscoped.delete(x.name);else unscoped.add(x.name);});
+    if(LAST_TABLES)renderDataList(LAST_TABLES);return;}
+  const mv=e.target.closest('.tblMove');
+  if(mv){const n=mv.dataset.t;let target=mv.value;
+    if(target===' new'){target=newFolder();if(!target){if(LAST_TABLES)renderDataList(LAST_TABLES);return;}}
+    if(target)FOLDERS.assign[n]=target;else delete FOLDERS.assign[n];
+    saveFolders();if(LAST_TABLES)renderDataList(LAST_TABLES);return;}
+  if(e.target.id==='upTarget'){uploadTarget=e.target.value;return;}
+});
+// collapse a folder / delete a folder (delegated click)
+document.addEventListener('click',async e=>{
+  const car=e.target.closest('.fCaret');
+  if(car){const f=car.dataset.f;FOLDERS.collapsed[f]=!FOLDERS.collapsed[f];saveFolders();if(LAST_TABLES)renderDataList(LAST_TABLES);return;}
+  const fd=e.target.closest('.fDel');
+  if(fd){const f=fd.dataset.f;
+    const members=(LAST_TABLES&&LAST_TABLES.table_details||[]).filter(x=>folderOf(x.name)===f);
+    const msg=members.length?`Delete folder “${f}” and its ${members.length} table${members.length>1?'s':''} (and their files)? This can't be undone.`:`Delete empty folder “${f}”?`;
+    if(!confirm(msg))return;
+    for(const x of members){try{await fetch('/tables/'+encodeURIComponent(x.name),{method:'DELETE',headers:authHeaders()});}catch(_){}
+      delete FOLDERS.assign[x.name];}
+    FOLDERS.order=FOLDERS.order.filter(n=>n!==f);delete FOLDERS.collapsed[f];if(uploadTarget===f)uploadTarget='';
+    saveFolders();loadTables();return;}
+});
+// "＋ Folder" button — create and make it the upload target
+const nfBtn=$('newFolderBtn');if(nfBtn)nfBtn.addEventListener('click',()=>{const n=newFolder();if(n){uploadTarget=n;syncUploadTarget();if(LAST_TABLES)renderDataList(LAST_TABLES);}});
 // live search filter (re-renders from the cached payload; no refetch)
 document.addEventListener('input',e=>{if(e.target.id!=='dataSearch')return;
   dataFilter=e.target.value.trim().toLowerCase();if(LAST_TABLES)renderDataList(LAST_TABLES);});
@@ -736,7 +825,7 @@ upBtn.addEventListener('click',()=>fileInput.click());
 fileInput.addEventListener('change',async()=>{const f=fileInput.files[0];if(!f)return;
   upNote.className='upnote';upNote.textContent='Uploading '+f.name+'…';const fd=new FormData();fd.append('file',f);
   try{const d=await(await fetch('/upload',{method:'POST',headers:authHeaders(),body:fd})).json();
-    if(d.ok){upNote.className='upnote ok';upNote.textContent='✓ '+(d.message||'Added');loadTables();}
+    if(d.ok){upNote.className='upnote ok';upNote.textContent='✓ '+(d.message||'Added');pendingAssign=true;loadTables();}
     else{upNote.className='upnote err';upNote.textContent='✗ '+(d.error||'Upload failed');}
   }catch(e){upNote.className='upnote err';upNote.textContent='✗ Upload failed';}
   fileInput.value='';setTimeout(()=>{upNote.textContent='';upNote.className='upnote';},7000);
