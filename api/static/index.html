@@ -331,6 +331,7 @@
       <input type="file" id="file" hidden accept=".csv,.parquet,.xlsx,.xls,.pdf,.txt,.md">
       <button class="btn full" id="upBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Upload a table or document</button>
       <div class="upnote" id="upNote"></div>
+      <input id="dataSearch" placeholder="Search tables &amp; documents…" autocomplete="off" style="display:none;width:100%;margin-top:8px;padding:6px 9px;font-size:12px;border:1px solid var(--line,#e6eceb);border-radius:8px;box-sizing:border-box">
       <div id="dataList" style="margin-top:8px"></div>
     </div>
 
@@ -480,9 +481,23 @@ async function loadTables(){
     renderDataList(t);
   }catch(e){}
 }
+// selection + search state that must SURVIVE re-render (loadTables runs after every
+// ask/upload). `unscoped` = table names the user has UNCHECKED (default = all in scope,
+// matching scopedTables' "null = all"). Persisting the set — not the DOM — means a
+// re-render or a search-filter re-render restores exactly what the user left checked.
+let unscoped=new Set(), dataFilter='', LAST_TABLES=null;
 function renderDataList(t){
   const el=$('dataList');if(!el)return;
-  const tbls=t.table_details||[],docs=t.documents||[],lim=t.embedding_mode==='test';
+  LAST_TABLES=t;
+  const allT=t.table_details||[],allD=t.documents||[],lim=t.embedding_mode==='test';
+  // forget deselections for tables that no longer exist (deleted/renamed)
+  const present=new Set(allT.map(x=>x.name));
+  [...unscoped].forEach(n=>{if(!present.has(n))unscoped.delete(n);});
+  // search bar: only worth showing once there's more than one thing to filter
+  const srch=$('dataSearch');if(srch)srch.style.display=(allT.length+allD.length)>1?'':'none';
+  const q=dataFilter;
+  const tbls=q?allT.filter(x=>(x.name||'').toLowerCase().includes(q)):allT;
+  const docs=q?allD.filter(x=>(x.name||'').toLowerCase().includes(q)):allD;
   const box=(inner)=>`<div style="padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px">${inner}</div>`;
   const hdr=(txt)=>`<div style="font-size:10.5px;letter-spacing:.04em;color:#6a818a;margin-top:8px;font-weight:700">${txt}</div>`;
   let h='';
@@ -491,7 +506,7 @@ function renderDataList(t){
     h+=hdr('TABLES · QUERYABLE <span style="font-weight:400">— check = in scope, click = preview</span>');
     for(const x of tbls){const cols=(x.columns||[]).join(', ');
       h+=`<div style="display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border:1px solid var(--line,#e6eceb);border-radius:8px;margin-top:5px">`+
-         `<input type="checkbox" class="tblScope" value="${esc(x.name)}" checked title="Include in queries" style="margin-top:3px;flex:none;cursor:pointer">`+
+         `<input type="checkbox" class="tblScope" value="${esc(x.name)}" ${unscoped.has(x.name)?'':'checked'} title="Include in queries" style="margin-top:3px;flex:none;cursor:pointer">`+
          `<span class="tblPrev" data-t="${esc(x.name)}" title="Click to preview rows" style="flex:1;min-width:0;cursor:pointer"><span style="font-weight:600;font-size:12px;color:var(--teal,#0c8c7e)">${esc(x.name)}</span>`+
          `<span style="display:block;color:#6a818a;font-size:11px;overflow-wrap:anywhere">${(x.rows!=null?x.rows+' rows':'')}${cols?' · '+esc(cols):''}</span></span>`+
          delBtn('tblDel',x.name)+`</div>`;
@@ -503,16 +518,27 @@ function renderDataList(t){
       `<span style="flex:1;min-width:0"><span style="font-weight:600;font-size:12px;color:#3a525c">${esc(x.name)}</span><span style="display:block;color:#6a818a;font-size:11px">document — not a queryable table</span></span>`+
       delBtn('docDel',x.name)+`</div>`;
   }
-  if(!tbls.length&&!docs.length)h='<div style="font-size:11.5px;color:#6a818a;margin-top:8px">No data yet. Upload a <b>CSV or Excel</b> file to query it as a table.</div>';
+  if(!tbls.length&&!docs.length)h=(q&&(allT.length||allD.length))
+    ?`<div style="font-size:11.5px;color:#6a818a;margin-top:8px">No tables or documents match “${esc(q)}”.</div>`
+    :'<div style="font-size:11.5px;color:#6a818a;margin-top:8px">No data yet. Upload a <b>CSV or Excel</b> file to query it as a table.</div>';
   el.innerHTML=h;
 }
-// which tables the next question is scoped to; null = all (default, no scoping)
+// which tables the next question is scoped to; null = all (default, no scoping).
+// Driven by the persisted `unscoped` set over ALL known tables — NOT the rendered
+// checkboxes — so an active search filter (which hides some boxes) can't silently
+// narrow the query scope to just what's visible.
 function scopedTables(){
-  const boxes=[...document.querySelectorAll('.tblScope')];
-  if(!boxes.length)return null;
-  const checked=boxes.filter(b=>b.checked).map(b=>b.value);
-  return checked.length===boxes.length?null:checked;
+  const all=(LAST_TABLES&&LAST_TABLES.table_details)?LAST_TABLES.table_details.map(x=>x.name):[];
+  if(!all.length)return null;
+  const checked=all.filter(n=>!unscoped.has(n));
+  return checked.length===all.length?null:checked;
 }
+// keep the persisted set in sync as the user ticks/unticks (delegated — survives re-render)
+document.addEventListener('change',e=>{const cb=e.target.closest('.tblScope');if(!cb)return;
+  if(cb.checked)unscoped.delete(cb.value);else unscoped.add(cb.value);});
+// live search filter (re-renders from the cached payload; no refetch)
+document.addEventListener('input',e=>{if(e.target.id!=='dataSearch')return;
+  dataFilter=e.target.value.trim().toLowerCase();if(LAST_TABLES)renderDataList(LAST_TABLES);});
 // delete (table/doc) + click-to-preview — delegated so it works after every re-render
 document.addEventListener('click',async e=>{
   const tdel=e.target.closest('.tblDel'),ddel=e.target.closest('.docDel'),prev=e.target.closest('.tblPrev');
