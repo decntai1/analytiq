@@ -13,10 +13,17 @@ so the fabrication invariant is untouched.
 """
 from __future__ import annotations
 
+from index.region_lookup import BASEMAPS, resolve_choropleth
+
 _MARK = {"bar": "bar", "line": "line", "area": "area", "scatter": "point", "pie": "arc"}
 
 _LABEL_COLOR = "#3a525c"
 _TREND_COLOR = "#d4453f"
+_POINT_COLOR = "#2b6b7a"
+_LAND_FILL = "#eef3f4"
+_LAND_STROKE = "#d6e0e2"
+_GEO_HEIGHT = 360               # maps need an explicit height (geoshape has no implicit extent)
+_GEO_RESOLVE_MIN = 0.8          # <80% of region values resolve -> honest refusal, not a wrong map
 
 
 def _has_numeric(rows: list[dict], field: str | None) -> bool:
@@ -58,6 +65,10 @@ def to_vegalite(spec: dict, rows: list[dict]) -> dict:
         measure = enc.get("color")
     elif ctype in ("histogram", "density"):
         measure = enc.get("value")
+    elif ctype == "choropleth":
+        measure = enc.get("value")
+    elif ctype == "geo_points":
+        measure = enc.get("lat")   # lat/lon must be numeric; non-numeric -> honest table fallback
     else:
         measure = enc.get("y") or enc.get("value") or enc.get("color")
     if not rows or not _has_numeric(rows, measure):
@@ -74,6 +85,72 @@ def to_vegalite(spec: dict, rows: list[dict]) -> dict:
         # for the eval scorer + trace. Vega-Lite ignores unknown top-level keys.
         "_neutral": ctype,
     }
+
+    # --- geographic types (topojson basemap + deterministic id resolution) ---
+    # Region names are resolved to topojson feature ids SERVER-SIDE via the frozen
+    # index/region_lookup table; the model never emits a region code, and Vega-Lite
+    # only shades ids we resolved -> no fabricated geography. The topojson is loaded
+    # by same-origin URL (vendored, air-gap safe), not inlined into every response.
+    if ctype == "choropleth":
+        level = spec.get("region_level", "country")
+        bm = BASEMAPS[level]
+        values, rate = resolve_choropleth(rows, enc["region"], enc["value"], level)
+        if rate < _GEO_RESOLVE_MIN:
+            pretty = level.replace("_", " ")
+            raise ValueError(
+                f"Only {round(rate * 100)}% of the '{enc['region']}' values match known "
+                f"{pretty} names or codes (need ≥{round(_GEO_RESOLVE_MIN * 100)}%). "
+                f"Region buckets (EMEA/APAC) or unrecognized labels can't be placed on a "
+                f"{pretty} map — use a bar chart, or map by a real {pretty} column.")
+        if not values:
+            raise ValueError(f"No numeric '{enc['value']}' values to place on the map.")
+        base.pop("data", None)  # topojson is the geometry source; resolved values are joined in
+        base["projection"] = {"type": bm["projection"]}
+        base["height"] = _GEO_HEIGHT
+        base["data"] = {"url": bm["url"], "format": {"type": "topojson", "feature": bm["feature"]}}
+        base["transform"] = [{
+            "lookup": "id",
+            "from": {"data": {"values": values}, "key": "id", "fields": ["value", "label"]},
+        }]
+        base["mark"] = {"type": "geoshape", "stroke": "#ffffff", "strokeWidth": 0.5}
+        base["encoding"] = {
+            "color": {"field": "value", "type": "quantitative",
+                      "scale": {"scheme": "teals"},
+                      "legend": {"title": title or enc["value"]}},
+            "tooltip": [{"field": "label", "type": "nominal", "title": enc["region"]},
+                        {"field": "value", "type": "quantitative", "title": enc["value"]}],
+        }
+        return base
+
+    if ctype == "geo_points":
+        lat_f, lon_f = enc["lat"], enc["lon"]
+        if not _has_numeric(rows, lon_f):   # lat covered by the measure guard above
+            t = (f"{title} — longitude column '{lon_f}' isn't numeric, showing rows").strip(" —")
+            return _table(t, rows)
+        pt_enc = {
+            "longitude": {"field": lon_f, "type": "quantitative"},
+            "latitude": {"field": lat_f, "type": "quantitative"},
+            "tooltip": [{"field": c} for c in rows[0].keys()],
+        }
+        mark = {"type": "circle", "opacity": 0.75}
+        if enc.get("size"):
+            pt_enc["size"] = {"field": enc["size"], "type": "quantitative",
+                              "title": enc["size"], "scale": {"range": [20, 400]}}
+        if enc.get("color"):
+            pt_enc["color"] = {"field": enc["color"], "type": "nominal"}
+        else:
+            mark["color"] = _POINT_COLOR
+        base.pop("data", None)  # each layer carries its own data (basemap vs. points)
+        base["projection"] = {"type": "equalEarth"}
+        base["height"] = _GEO_HEIGHT
+        base["layer"] = [
+            {"data": {"url": "/static/vendor/world-110m.json",
+                      "format": {"type": "topojson", "feature": "countries"}},
+             "mark": {"type": "geoshape", "fill": _LAND_FILL,
+                      "stroke": _LAND_STROKE, "strokeWidth": 0.4}},
+            {"data": {"values": rows}, "mark": mark, "encoding": pt_enc},
+        ]
+        return base
 
     # --- statistical types (declarative transforms) ------------------------
     if ctype == "histogram":

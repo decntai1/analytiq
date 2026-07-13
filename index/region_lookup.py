@@ -62,27 +62,40 @@ def table_for(level: str) -> dict:
     return _tables().get("levels", {}).get(level, {})
 
 
-def resolve_rows(rows: list[dict], field: str, level: str):
-    """Resolve a query result's region column to topojson ids.
+def resolve_choropleth(rows: list[dict], region_field: str, value_field: str, level: str):
+    """Resolve a query result's region column to topojson ids, ready to inline as a
+    Vega-Lite lookup source.
 
-    Returns (matched, rate) where:
-      matched: list of {"id": <topojson id str>, "_value": <raw value>} for rows whose
-               region value resolved (one entry per resolved row, in row order).
-      rate:    distinct-resolved / distinct-non-empty region values (coverage the
-               validator/renderer gates on; 0.0 when the column is empty or non-geo).
+    Returns (values, rate):
+      values: list of {"id": <topojson id str>, "value": <float>, "label": <raw region>},
+              one per resolved topojson feature (duplicate ids summed — SQL usually
+              pre-aggregates, so this only matters for un-grouped input).
+      rate:   distinct-resolved / distinct-non-empty region values — the coverage the
+              renderer gates on (>=0.8). 0.0 when the column is empty or non-geographic,
+              which is exactly how "this isn't map data" surfaces as an honest refusal.
     """
     table = table_for(level)
     seen: set[str] = set()
-    resolved_keys: set[str] = set()
-    matched: list[dict] = []
+    resolved: set[str] = set()
+    by_id: dict[str, list] = {}  # id -> [summed value, label]
     for r in rows:
-        key = normalize_region(r.get(field))
+        raw = r.get(region_field)
+        key = normalize_region(raw)
         if not key:
             continue
         seen.add(key)
         tid = table.get(key)
-        if tid is not None:
-            resolved_keys.add(key)
-            matched.append({"id": tid, "_value": r.get(field)})
-    rate = (len(resolved_keys) / len(seen)) if seen else 0.0
-    return matched, rate
+        if tid is None:
+            continue
+        resolved.add(key)
+        try:
+            num = float(r.get(value_field))
+        except (TypeError, ValueError):
+            continue  # region resolved but value non-numeric — counts toward coverage, not drawn
+        if tid in by_id:
+            by_id[tid][0] += num
+        else:
+            by_id[tid] = [num, str(raw)]
+    values = [{"id": tid, "value": v, "label": label} for tid, (v, label) in by_id.items()]
+    rate = (len(resolved) / len(seen)) if seen else 0.0
+    return values, rate
