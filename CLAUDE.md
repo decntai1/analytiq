@@ -185,12 +185,29 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
    main UI yet) — show columns/types/sample rows so users clean what they can see.
 2. Colorful charts + numeric data labels (grow the neutral chart-spec whitelist
    primitive-by-primitive — scatter/heatmap within the deterministic model, NEVER
-   Python execution).
+   Python execution). SHIPPED so far: statistical types (histogram/boxplot/heatmap/
+   density/stacked_*/rolling_line + scatter trend) via Vega-Lite/DuckDB transforms;
+   GEOGRAPHIC maps (choropleth country|us_state + geo_points) — see below.
 3. Table-scope checkbox (pick which tables a question queries).
 4. Dormant buy-credits/Stripe path — build 503'd until keys; activate in the one
    Stripe pass (register /billing/webhook now the URL is live, add keys).
 
 ## Standing items
+- GEOGRAPHIC CHARTS (Phase B, shipped): neutral types `choropleth` (region+value,
+  region_level country|us_state) and `geo_points` (lat+lon, optional size/color).
+  Region names/codes are resolved to topojson feature ids SERVER-SIDE via the FROZEN
+  `index/region_lookup.json` (built by scripts/build_region_lookup.py from the vendored
+  topojson + ISO-3166; 570 country keys, 107 us_state keys) — the LLM never emits a
+  region code, so maps are model-independent BY CONSTRUCTION (same determinism boundary
+  as glossary_pin: normalized exact-match, NO fuzzy/synonyms — "Deutschland"/"EMEA" do
+  NOT resolve). Renderer refuses HONESTLY (ValueError -> graceful "Chart error", never a
+  500) when <80% of region values resolve or the column is non-geographic. Basemaps are
+  vendored (`api/static/vendor/world-110m.json`, `us-10m.json`) and referenced by SAME-
+  ORIGIN URL (air-gap rule; re-run build_region_lookup.py if you refresh them). Gate:
+  smoke_live.py §5e (country CSV -> map 200 + geoshape; non-geo -> honest 200 refusal).
+  CAVEAT: the topojson loads by URL, so DECK/PPTX map PNGs (viz/raster.py vl-convert)
+  can't fetch the basemap offline — maps render in the BROWSER (vega-embed) but the
+  slide raster path is unproven; treat maps as chat-only until that's addressed.
 - Ollama Cloud is on a FREE/personal key — move to Pro before real traffic (quota
   walls ~5M tok/wk, 120B burns it fast, no SLA).
 - The REAL EVAL RUN (models × scaffold levels over the gold set) — roadmap item 1,
