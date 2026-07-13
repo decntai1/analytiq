@@ -1,0 +1,53 @@
+{
+  "_about": "L2b+L5b diagnostic subset of the reasoning ladder \u2014 the two traps the general grid failed. For the code-specialization run.",
+  "items": [
+    {
+      "id": "L2b_net_revenue",
+      "level": 2,
+      "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+      "expected_tables": [
+        "sales",
+        "returns"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "scalar",
+        "rtol": 0.005,
+        "atol": 0.01,
+        "value": 1669174.2
+      },
+      "notes": "Combine two tables and SUBTRACT. A model that joins sales->returns row-wise DOUBLE-COUNTS revenue (some sales have >1 return) and drops non-returned sales \u2014 a wrong number that still runs. Classic fan-out trap."
+    },
+    {
+      "id": "L5b_return_rate_by_product",
+      "level": 5,
+      "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+      "expected_tables": [
+        "sales",
+        "returns"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "map",
+        "rtol": 0.01,
+        "atol": 0.5,
+        "scale_tol": true,
+        "pairs": {
+          "Vertex Keyboard": 14.82,
+          "Cobalt Laptop": 13.1,
+          "Ivory Stand": 12.06,
+          "Ember Charger": 12.0,
+          "Aurora Speaker": 0.0,
+          "Fable Tablet": 0.0,
+          "Halo Monitor": 0.0,
+          "Nimbus Router": 0.0,
+          "Onyx Webcam": 0.0,
+          "Pulse Earbuds": 0.0,
+          "Quartz Mouse": 0.0,
+          "Slate Dock": 0.0
+        }
+      },
+      "notes": "Hardest: returns reach product only THROUGH sales (returns has sale_id, not product) \u2014 join returns->sales, aggregate returns per product, aggregate sales per product SEPARATELY (or double-count via the join), LEFT JOIN so zero-return products survive, then divide. Many independent ways to go wrong."
+    }
+  ]
+}

@@ -1,0 +1,283 @@
+{
+  "_about": "Reasoning-bottleneck ladder (L1->L5). Retrieval held CONSTANT (run score.py with --pin-tables at level=full); expected_value is graded by score.py's grade_answer(). Built from eval/reasoning_ladder.py against ecommerce_ladder.db (eval/build_ladder_db.py). Regenerate: python3 eval/reasoning_ladder.py --db ecommerce_ladder.db --emit-gold gold/reasoning_ladder.json",
+  "items": [
+    {
+      "id": "L1a_total_revenue",
+      "level": 1,
+      "question": "What was the total revenue across all sales?",
+      "expected_tables": [
+        "sales"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "scalar",
+        "rtol": 0.005,
+        "atol": 0.01,
+        "value": 1748224.2
+      },
+      "notes": "Nothing. Baseline \u2014 one table, one aggregate."
+    },
+    {
+      "id": "L1b_revenue_by_quarter",
+      "level": 1,
+      "question": "What was total revenue per quarter?",
+      "expected_tables": [
+        "sales"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "map",
+        "rtol": 0.005,
+        "atol": 0.01,
+        "pairs": {
+          "Q1": 487110.25,
+          "Q2": 481759.51,
+          "Q3": 297354.29,
+          "Q4": 482000.15
+        }
+      },
+      "notes": "Trivial GROUP BY. Baseline."
+    },
+    {
+      "id": "L2a_revenue_by_channel",
+      "level": 2,
+      "question": "What was total revenue per sales channel? (channel is on the orders table, revenue is on sales)",
+      "expected_tables": [
+        "sales",
+        "orders"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "map",
+        "rtol": 0.005,
+        "atol": 0.01,
+        "pairs": {
+          "Wholesale": 444467.27,
+          "Online": 441703.91,
+          "Retail": 432225.54,
+          "Partner": 429827.48
+        }
+      },
+      "notes": "JOIN across sales->orders on order_id. Revenue and channel live in different tables; a wrong join key silently changes totals."
+    },
+    {
+      "id": "L2b_net_revenue",
+      "level": 2,
+      "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+      "expected_tables": [
+        "sales",
+        "returns"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "scalar",
+        "rtol": 0.005,
+        "atol": 0.01,
+        "value": 1669174.2
+      },
+      "notes": "Combine two tables and SUBTRACT. A model that joins sales->returns row-wise DOUBLE-COUNTS revenue (some sales have >1 return) and drops non-returned sales \u2014 a wrong number that still runs. Classic fan-out trap."
+    },
+    {
+      "id": "L3a_above_avg_products",
+      "level": 3,
+      "question": "Which products have total revenue above the average total revenue per product? List them.",
+      "expected_tables": [
+        "sales"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "label_set",
+        "labels": [
+          "Ivory Stand",
+          "Slate Dock",
+          "Onyx Webcam",
+          "Ember Charger",
+          "Quartz Mouse",
+          "Fable Tablet"
+        ]
+      },
+      "notes": "Two-level aggregation: per-product totals, then the AVERAGE of those totals, then filter. Models often compute AVG over ROWS (wrong) instead of AVG over per-product SUMS (right) \u2014 runs fine, wrong answer."
+    },
+    {
+      "id": "L4a_top_product_per_quarter",
+      "level": 4,
+      "question": "For each quarter, which single product had the highest revenue in that quarter, and how much?",
+      "expected_tables": [
+        "sales"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "label_map",
+        "pairs": {
+          "Q1": "Slate Dock",
+          "Q2": "Slate Dock",
+          "Q3": "Ivory Stand",
+          "Q4": "Ivory Stand"
+        }
+      },
+      "notes": "WINDOW FUNCTION (ROW_NUMBER OVER PARTITION BY quarter). Weak models fall back to GROUP BY that returns the max REVENUE but the WRONG product name, or rank globally instead of per quarter. Runs, wrong answer."
+    },
+    {
+      "id": "L4b_running_monthly_total",
+      "level": 4,
+      "question": "Show the cumulative (running) total of revenue by month across the year \u2014 each month's figure should include all prior months.",
+      "expected_tables": [
+        "sales"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "ordered",
+        "rtol": 0.005,
+        "atol": 0.01,
+        "rows": [
+          [
+            "2024-01",
+            163081.67
+          ],
+          [
+            "2024-02",
+            324830.92
+          ],
+          [
+            "2024-03",
+            487110.25
+          ],
+          [
+            "2024-04",
+            649643.89
+          ],
+          [
+            "2024-05",
+            810345.26
+          ],
+          [
+            "2024-06",
+            968869.76
+          ],
+          [
+            "2024-07",
+            1067208.71
+          ],
+          [
+            "2024-08",
+            1166572.9
+          ],
+          [
+            "2024-09",
+            1266224.05
+          ],
+          [
+            "2024-10",
+            1425984.98
+          ],
+          [
+            "2024-11",
+            1585942.51
+          ],
+          [
+            "2024-12",
+            1748224.2
+          ]
+        ]
+      },
+      "notes": "SUM(...) OVER (ORDER BY ...) \u2014 a running/cumulative window. Models frequently produce per-month totals (no accumulation) or mis-order it."
+    },
+    {
+      "id": "L5a_mom_growth",
+      "level": 5,
+      "question": "What was the month-over-month revenue growth RATE (as a percentage) for each month? The first month has no prior month.",
+      "expected_tables": [
+        "sales"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "ordered",
+        "rtol": 0.01,
+        "atol": 0.5,
+        "scale_tol": true,
+        "rows": [
+          [
+            "2024-01",
+            null
+          ],
+          [
+            "2024-02",
+            -0.82
+          ],
+          [
+            "2024-03",
+            0.33
+          ],
+          [
+            "2024-04",
+            0.16
+          ],
+          [
+            "2024-05",
+            -1.13
+          ],
+          [
+            "2024-06",
+            -1.35
+          ],
+          [
+            "2024-07",
+            -37.97
+          ],
+          [
+            "2024-08",
+            1.04
+          ],
+          [
+            "2024-09",
+            0.29
+          ],
+          [
+            "2024-10",
+            60.32
+          ],
+          [
+            "2024-11",
+            0.12
+          ],
+          [
+            "2024-12",
+            1.45
+          ]
+        ]
+      },
+      "notes": "Compound: LAG() for the prior month, a division for the rate, AND correct NULL handling for the first month. Integer division, wrong prior month, or crashing on the first-month null all give subtly wrong output."
+    },
+    {
+      "id": "L5b_return_rate_by_product",
+      "level": 5,
+      "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+      "expected_tables": [
+        "sales",
+        "returns"
+      ],
+      "expect_chart": false,
+      "expected_value": {
+        "kind": "map",
+        "rtol": 0.01,
+        "atol": 0.5,
+        "scale_tol": true,
+        "pairs": {
+          "Vertex Keyboard": 14.82,
+          "Cobalt Laptop": 13.1,
+          "Ivory Stand": 12.06,
+          "Ember Charger": 12.0,
+          "Aurora Speaker": 0.0,
+          "Fable Tablet": 0.0,
+          "Halo Monitor": 0.0,
+          "Nimbus Router": 0.0,
+          "Onyx Webcam": 0.0,
+          "Pulse Earbuds": 0.0,
+          "Quartz Mouse": 0.0,
+          "Slate Dock": 0.0
+        }
+      },
+      "notes": "Hardest: returns reach product only THROUGH sales (returns has sale_id, not product) \u2014 join returns->sales, aggregate returns per product, aggregate sales per product SEPARATELY (or double-count via the join), LEFT JOIN so zero-return products survive, then divide. Many independent ways to go wrong."
+    }
+  ]
+}

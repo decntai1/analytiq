@@ -1,0 +1,4318 @@
+[
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 1,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 4.03,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue\nFROM sales\nLEFT JOIN returns ON sales.sale_id = returns.sale_id"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 1,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 5.53,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returned_amount": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returned_amount": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returned_amount": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returned_amount": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returned_amount": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    s.product,\n    SUM(s.revenue) AS total_revenue,\n    COALESCE(SUM(r.amount), 0) AS total_returned_amount,\n    CASE \n        WHEN SUM(s.revenue) = 0 THEN 0 \n        ELSE COALESCE(SUM(r.amount), 0) / SUM(s.revenue)\n    END AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 2,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.58,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n  SUM(s.revenue) - COALESCE(SUM(r.amount), 0) AS net_revenue\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 2,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": true,
+    "latency": 10.98,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 108266.47,
+        "total_returned": 16050.0,
+        "return_fraction": 0.14824534317965662
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 141390.97,
+        "total_returned": 18525.0,
+        "return_fraction": 0.1310196825157929
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 194731.78,
+        "total_returned": 23475.0,
+        "return_fraction": 0.12055043095687823
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 174983.62,
+        "total_returned": 21000.0,
+        "return_fraction": 0.12001123305141362
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "WITH product_revenue AS (\n    SELECT \n        s.product,\n        SUM(s.revenue) AS total_revenue\n    FROM sales s\n    GROUP BY s.product\n),\nproduct_returns AS (\n    SELECT \n        s.product,\n        COALESCE(SUM(r.amount), 0) AS total_returned\n    FROM sales s\n    LEFT JOIN returns r ON s.sale_id = r.sale_id\n    GROUP BY s.product\n)\nSELECT \n    pr.product,\n    pr.total_revenue,\n    COALESCE(prt.total_returned, 0) AS total_returned,\n    CAST(COALESCE(prt.total_returned, 0) AS REAL) / pr.total_revenue AS return_fraction\nFROM product_revenue pr\nLEFT JOIN product_returns prt ON pr.product = prt.product\nORDER BY return_fraction DESC, pr.product;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 3,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.4,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue\nFROM sales\nLEFT JOIN returns ON sales.sale_id = returns.sale_id"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 3,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": true,
+    "latency": 7.65,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "return_fraction": 0.14824534317965662
+      },
+      {
+        "product": "Cobalt Laptop",
+        "return_fraction": 0.1310196825157929
+      },
+      {
+        "product": "Ivory Stand",
+        "return_fraction": 0.12055043095687823
+      },
+      {
+        "product": "Ember Charger",
+        "return_fraction": 0.12001123305141362
+      },
+      {
+        "product": "Aurora Speaker",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Slate Dock",
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "WITH product_revenue AS (\n    SELECT \n        product,\n        SUM(revenue) AS total_revenue\n    FROM sales\n    GROUP BY product\n),\nproduct_returns AS (\n    SELECT \n        s.product,\n        SUM(r.amount) AS total_returned\n    FROM returns r\n    JOIN sales s ON r.sale_id = s.sale_id\n    GROUP BY s.product\n),\nreturn_fractions AS (\n    SELECT \n        pr.product,\n        pr.total_revenue,\n        COALESCE(pret.total_returned, 0) AS total_returned,\n        CASE \n            WHEN pr.total_revenue = 0 THEN 0\n            ELSE CAST(COALESCE(pret.total_returned, 0) AS REAL) / pr.total_revenue\n        END AS return_fraction\n    FROM product_revenue pr\n    LEFT JOIN product_returns pret ON pr.product = pret.product\n)\nSELECT \n    product,\n    return_fraction\nFROM return_fractions\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 4,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.32,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    SUM(s.revenue) - COALESCE(SUM(r.amount), 0) AS net_revenue\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 4,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 7.57,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returned": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returned": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returned": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returned": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT \n  s.product,\n  SUM(s.revenue) AS total_revenue,\n  COALESCE(SUM(r.amount), 0) AS total_returned,\n  CASE \n    WHEN SUM(s.revenue) > 0 THEN COALESCE(SUM(r.amount), 0) / SUM(s.revenue)\n    ELSE 0\n  END AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 5,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 4.33,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    SUM(sales.revenue) AS total_revenue,\n    COALESCE(SUM(returns.amount), 0) AS total_returns\nFROM sales\nLEFT JOIN returns ON sales.sale_id = returns.sale_id",
+      "SELECT \n    SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue\nFROM sales\nLEFT JOIN returns ON sales.sale_id = returns.sale_id"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 5,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 6.3,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "returned_amount": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "returned_amount": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "returned_amount": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "returned_amount": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    s.product,\n    SUM(s.revenue) AS total_revenue,\n    COALESCE(SUM(r.amount), 0) AS returned_amount,\n    COALESCE(SUM(r.amount), 0) / NULLIF(SUM(s.revenue), 0) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 6,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.31,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue\nFROM sales\nLEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 6,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": true,
+    "latency": 5.24,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "return_fraction": 0.1482
+      },
+      {
+        "product": "Cobalt Laptop",
+        "return_fraction": 0.131
+      },
+      {
+        "product": "Ivory Stand",
+        "return_fraction": 0.1206
+      },
+      {
+        "product": "Ember Charger",
+        "return_fraction": 0.12
+      },
+      {
+        "product": "Aurora Speaker",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Slate Dock",
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "WITH product_sales AS (\n  SELECT \n    product,\n    SUM(revenue) AS total_revenue\n  FROM sales\n  GROUP BY product\n),\nproduct_returns AS (\n  SELECT \n    s.product,\n    COALESCE(SUM(r.amount), 0) AS total_returned\n  FROM sales s\n  LEFT JOIN returns r ON s.sale_id = r.sale_id\n  GROUP BY s.product\n)\nSELECT \n  ps.product,\n  ROUND(CAST(pr.total_returned AS REAL) / ps.total_revenue, 4) AS return_fraction\nFROM product_sales ps\nJOIN product_returns pr ON ps.product = pr.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 7,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.29,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n  SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue\nFROM sales\nLEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 7,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": true,
+    "latency": 8.86,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 108266.47,
+        "returned_amount": 16050.0,
+        "return_fraction": 0.14824534317965662
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 141390.97,
+        "returned_amount": 18525.0,
+        "return_fraction": 0.1310196825157929
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 194731.78,
+        "returned_amount": 23475.0,
+        "return_fraction": 0.12055043095687823
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 174983.62,
+        "returned_amount": 21000.0,
+        "return_fraction": 0.12001123305141362
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "returned_amount": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "WITH product_revenue AS (\n  SELECT \n    product,\n    SUM(revenue) as total_revenue\n  FROM sales\n  GROUP BY product\n),\nproduct_returns AS (\n  SELECT \n    s.product,\n    COALESCE(SUM(r.amount), 0) as total_returned\n  FROM sales s\n  LEFT JOIN returns r ON s.sale_id = r.sale_id\n  GROUP BY s.product\n)\nSELECT \n  pr.product,\n  pr.total_revenue,\n  COALESCE(pret.total_returned, 0) as returned_amount,\n  COALESCE(pret.total_returned, 0) / pr.total_revenue as return_fraction\nFROM product_revenue pr\nLEFT JOIN product_returns pret ON pr.product = pret.product\nORDER BY return_fraction DESC"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 8,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 3.35,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n  SUM(s.revenue) - COALESCE(SUM(r.amount), 0) AS net_revenue\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 8,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 5.78,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returned": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returned": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returned": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returned": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    s.product,\n    SUM(s.revenue) AS total_revenue,\n    COALESCE(SUM(r.amount), 0) AS total_returned,\n    COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 9,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.35,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n  SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue\nFROM sales\nLEFT JOIN returns ON sales.sale_id = returns.sale_id"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 9,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": true,
+    "latency": 5.59,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 108266.47,
+        "total_returned": 16050.0,
+        "return_fraction": 0.14824534317965662
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 141390.97,
+        "total_returned": 18525.0,
+        "return_fraction": 0.1310196825157929
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 194731.78,
+        "total_returned": 23475.0,
+        "return_fraction": 0.12055043095687823
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 174983.62,
+        "total_returned": 21000.0,
+        "return_fraction": 0.12001123305141362
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "WITH product_revenues AS (\n    SELECT\n        product,\n        SUM(revenue) AS total_revenue\n    FROM sales\n    GROUP BY product\n),\nproduct_returns AS (\n    SELECT\n        s.product,\n        COALESCE(SUM(r.amount), 0) AS total_returned\n    FROM sales s\n    LEFT JOIN returns r ON s.sale_id = r.sale_id\n    GROUP BY s.product\n)\nSELECT\n    pr.product,\n    pr.total_revenue,\n    prr.total_returned,\n    CAST(prr.total_returned AS REAL) / pr.total_revenue AS return_fraction\nFROM product_revenues pr\nJOIN product_returns prr ON pr.product = prr.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 10,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.52,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT \n  SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue\nFROM sales\nLEFT JOIN returns ON sales.sale_id = returns.sale_id"
+    ]
+  },
+  {
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 10,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 7.47,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "return_fraction": 0.1125
+      },
+      {
+        "product": "Cobalt Laptop",
+        "return_fraction": 0.1048
+      },
+      {
+        "product": "Ember Charger",
+        "return_fraction": 0.0942
+      },
+      {
+        "product": "Ivory Stand",
+        "return_fraction": 0.092
+      },
+      {
+        "product": "Aurora Speaker",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Slate Dock",
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    s.product,\n    SUM(s.revenue) AS total_revenue,\n    COALESCE(SUM(r.amount), 0) AS total_returned\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY s.product;",
+      "WITH product_summary AS (\n    SELECT \n        s.product,\n        SUM(s.revenue) AS total_revenue,\n        COALESCE(SUM(r.amount), 0) AS total_returned\n    FROM sales s\n    LEFT JOIN returns r ON s.sale_id = r.sale_id\n    GROUP BY s.product\n)\nSELECT \n    product,\n    ROUND(total_returned / total_revenue, 4) AS return_fraction\nFROM product_summary\nWHERE total_revenue > 0\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "_summary": true,
+    "model": "qwen3-coder-next",
+    "level": "full",
+    "table_recall": 1.0,
+    "chart_ok_rate": 1.0,
+    "docs_ok_rate": 1.0,
+    "answer_correct_rate": 0.25,
+    "answer_graded_n": 20,
+    "avg_errors": 0.0,
+    "avg_latency_s": 4.97
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 1,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.78,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 1,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 5.67,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 2,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 3.29,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 2,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 10.7,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 3,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 4.04,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 3,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 6.26,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 4,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 7.72,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 4,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 13.05,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 5,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 4.29,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 5,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 13.31,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 6,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 13.0,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 6,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 36.83,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 7,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 3.8,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 7,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 7.7,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction FROM sales s LEFT JOIN returns r ON s.sale_id = r.sale_id GROUP BY s.product ORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 8,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 4.48,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 8,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 8.73,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 9,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 6.89,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 9,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 9.58,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 10,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.98,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-small-24b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 10,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 7.92,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "_summary": true,
+    "model": "devstral-small-24b",
+    "level": "full",
+    "table_recall": 1.0,
+    "chart_ok_rate": 1.0,
+    "docs_ok_rate": 1.0,
+    "answer_correct_rate": 0.0,
+    "answer_graded_n": 20,
+    "avg_errors": 0.0,
+    "avg_latency_s": 8.65
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 1,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.71,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 1,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 22.9,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 2,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.77,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 2,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 6.07,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 3,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 4.12,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 3,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 17.95,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 4,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 6.97,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 4,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 35.42,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 5,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 4.32,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 5,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 14.24,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction FROM sales s LEFT JOIN returns r ON s.sale_id = r.sale_id GROUP BY s.product ORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 6,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 3.63,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 6,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 13.41,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returned": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returned": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returned": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returned": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    s.product,\n    SUM(s.revenue) AS total_revenue,\n    COALESCE(SUM(r.amount), 0) AS total_returned,\n    COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM \n    sales s\nLEFT JOIN \n    returns r ON s.sale_id = r.sale_id\nGROUP BY \n    s.product\nORDER BY \n    return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 7,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 11.4,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 7,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 12.31,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM sales s\nLEFT JOIN returns r ON s.sale_id = r.sale_id\nGROUP BY s.product\nORDER BY return_fraction DESC"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 8,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 2.74,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 8,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 11.16,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount), 0) AS total_returns, COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction FROM sales s LEFT JOIN returns r ON s.sale_id = r.sale_id GROUP BY s.product ORDER BY return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 9,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 4.41,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 9,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 7.63,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returns": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returns": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returns": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returns": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returns": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    s.product,\n    SUM(s.revenue) AS total_revenue,\n    COALESCE(SUM(r.amount), 0) AS total_returns,\n    COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM \n    sales s\nLEFT JOIN \n    returns r ON s.sale_id = r.sale_id\nGROUP BY \n    s.product\nORDER BY \n    return_fraction DESC;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L2b_net_revenue",
+    "repeat": 10,
+    "question": "What was net revenue (sales revenue minus returned amounts) overall?",
+    "expected_value": {
+      "kind": "scalar",
+      "rtol": 0.005,
+      "atol": 0.01,
+      "value": 1669174.2
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 3.79,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "net_revenue": 1847143.53
+      }
+    ],
+    "sql_log": [
+      "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;"
+    ]
+  },
+  {
+    "model": "devstral-123b",
+    "level": "full",
+    "qid": "L5b_return_rate_by_product",
+    "repeat": 10,
+    "question": "For each product, what fraction of its revenue was returned? (returned amount divided by that product's sales revenue). Rank products from highest return-fraction to lowest.",
+    "expected_value": {
+      "kind": "map",
+      "rtol": 0.01,
+      "atol": 0.5,
+      "scale_tol": true,
+      "pairs": {
+        "Vertex Keyboard": 14.82,
+        "Cobalt Laptop": 13.1,
+        "Ivory Stand": 12.06,
+        "Ember Charger": 12.0,
+        "Aurora Speaker": 0.0,
+        "Fable Tablet": 0.0,
+        "Halo Monitor": 0.0,
+        "Nimbus Router": 0.0,
+        "Onyx Webcam": 0.0,
+        "Pulse Earbuds": 0.0,
+        "Quartz Mouse": 0.0,
+        "Slate Dock": 0.0
+      }
+    },
+    "table_recall": 1.0,
+    "chart_ok": true,
+    "docs_ok": true,
+    "error_count": 0,
+    "answer_correct": false,
+    "latency": 13.18,
+    "tables_retrieved": [
+      "sales",
+      "returns"
+    ],
+    "result_rows": [
+      {
+        "product": "Vertex Keyboard",
+        "total_revenue": 142609.13999999998,
+        "total_returned": 16050.0,
+        "return_fraction": 0.11254538103237985
+      },
+      {
+        "product": "Cobalt Laptop",
+        "total_revenue": 176720.12,
+        "total_returned": 18525.0,
+        "return_fraction": 0.10482677354451773
+      },
+      {
+        "product": "Ember Charger",
+        "total_revenue": 222970.6,
+        "total_returned": 21000.0,
+        "return_fraction": 0.09418282051535046
+      },
+      {
+        "product": "Ivory Stand",
+        "total_revenue": 255042.31,
+        "total_returned": 23475.0,
+        "return_fraction": 0.0920435515189617
+      },
+      {
+        "product": "Slate Dock",
+        "total_revenue": 188921.52,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Quartz Mouse",
+        "total_revenue": 157348.4,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Pulse Earbuds",
+        "total_revenue": 132653.45,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Onyx Webcam",
+        "total_revenue": 186622.05,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Nimbus Router",
+        "total_revenue": 96909.51,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Halo Monitor",
+        "total_revenue": 123596.85,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Fable Tablet",
+        "total_revenue": 149597.28,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      },
+      {
+        "product": "Aurora Speaker",
+        "total_revenue": 93202.3,
+        "total_returned": 0,
+        "return_fraction": 0.0
+      }
+    ],
+    "sql_log": [
+      "SELECT \n    s.product,\n    SUM(s.revenue) AS total_revenue,\n    COALESCE(SUM(r.amount), 0) AS total_returned,\n    COALESCE(SUM(r.amount), 0) / SUM(s.revenue) AS return_fraction\nFROM \n    sales s\nLEFT JOIN \n    returns r ON s.sale_id = r.sale_id\nGROUP BY \n    s.product\nORDER BY \n    return_fraction DESC;"
+    ]
+  },
+  {
+    "_summary": true,
+    "model": "devstral-123b",
+    "level": "full",
+    "table_recall": 1.0,
+    "chart_ok_rate": 1.0,
+    "docs_ok_rate": 1.0,
+    "answer_correct_rate": 0.0,
+    "answer_graded_n": 20,
+    "avg_errors": 0.0,
+    "avg_latency_s": 10.06
+  }
+]
