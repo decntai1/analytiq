@@ -194,11 +194,12 @@ TYPED_CSV_ROWS = 4
 
 # A CSV with a REAL geographic column so the choropleth path (Phase B) can resolve
 # region names -> topojson ids deterministically (index/region_lookup). Full country
-# names + an ISO/alias ("US") exercise the frozen lookup end-to-end; every value here
-# resolves, so a rendered map clears the >=80% coverage gate.
+# names + an ISO/alias ("US") + a European endonym ("Deutschland" -> Germany) exercise
+# the frozen lookup end-to-end; every value here resolves, so a rendered map clears the
+# >=80% coverage gate.
 GEO_CSV_CONTENT = (
     "country,revenue\n"
-    "Germany,120\nFrance,90\nUnited States,300\nBrazil,50\n"
+    "Deutschland,120\nFrance,90\nUnited States,300\nBrazil,50\n"
     "Japan,80\nUS,60\nIndia,110\n"
 ).encode()
 GEO_CSV_ROWS = 7

@@ -44,6 +44,23 @@ COUNTRY_ALIASES = {
     "turkey": "792", "turkiye": "792", "netherlands": "528", "holland": "528",
 }
 
+# European endonyms (self-names). A European customer typing their own country name
+# in their data is the realistic case — "Deutschland doesn't resolve" would read as a
+# bug to exactly our target market. These are FROZEN exact-match keys, identical in
+# status to the ISO codes and COUNTRY_ALIASES above — NOT a fuzzy step. normalize_region
+# strips accents/case (Österreich -> "osterreich"), so the accented source form is just
+# self-documentation. Latin-script only, and only unambiguous names (Ísland -> "island"
+# is deliberately omitted — it would collide with the English word). value -> ISO numeric.
+COUNTRY_ENDONYMS = {
+    "Deutschland": "276", "Magyarország": "348", "España": "724", "Italia": "380",
+    "Nederland": "528", "Österreich": "040", "Suomi": "246", "Sverige": "752",
+    "Norge": "578", "Danmark": "208", "Polska": "616", "België": "056",
+    "Belgique": "056", "Schweiz": "756", "Suisse": "756", "Svizzera": "756",
+    "Hrvatska": "191", "Česko": "203", "Česká republika": "203", "Éire": "372",
+    "Hellas": "300", "Lietuva": "440", "Latvija": "428", "Eesti": "233",
+    "Slovensko": "703", "Slovenija": "705", "Lëtzebuerg": "442", "Shqipëria": "008",
+}
+
 # 50 states + DC: 2-letter USPS abbreviation -> FIPS (the us-atlas feature id, zero-padded).
 US_STATE_ABBR = {
     "AL": "01", "AK": "02", "AZ": "04", "AR": "05", "CA": "06", "CO": "08", "CT": "09",
@@ -87,8 +104,8 @@ def build_countries() -> dict:
         _add(table, r["name"], tid)
         _add(table, r["alpha-2"], tid)
         _add(table, r["alpha-3"], tid)
-    # 3) curated aliases (only those whose id is actually in the atlas)
-    for alias, tid in COUNTRY_ALIASES.items():
+    # 3) curated aliases + European endonyms (only those whose id is in the atlas)
+    for alias, tid in {**COUNTRY_ALIASES, **COUNTRY_ENDONYMS}.items():
         if tid in ids_present:
             _add(table, alias, tid)
     return table

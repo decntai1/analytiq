@@ -197,10 +197,13 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
   region_level country|us_state) and `geo_points` (lat+lon, optional size/color).
   Region names/codes are resolved to topojson feature ids SERVER-SIDE via the FROZEN
   `index/region_lookup.json` (built by scripts/build_region_lookup.py from the vendored
-  topojson + ISO-3166; 570 country keys, 107 us_state keys) — the LLM never emits a
+  topojson + ISO-3166 + a curated European-endonym list; 598 country keys, 107 us_state
+  keys) — the LLM never emits a
   region code, so maps are model-independent BY CONSTRUCTION (same determinism boundary
-  as glossary_pin: normalized exact-match, NO fuzzy/synonyms — "Deutschland"/"EMEA" do
-  NOT resolve). Renderer refuses HONESTLY (ValueError -> graceful "Chart error", never a
+  as glossary_pin: normalized exact-match, NO fuzzy/synonyms). The endonyms (Deutschland,
+  Magyarország, España, Österreich, Suomi, … — build_region_lookup.py COUNTRY_ENDONYMS)
+  are FROZEN exact keys, same status as ISO codes, NOT a fuzzy step; a bucket like "EMEA"
+  still does NOT resolve (honest refusal). Renderer refuses HONESTLY (ValueError -> graceful "Chart error", never a
   500) when <80% of region values resolve or the column is non-geographic. Basemaps are
   vendored (`api/static/vendor/world-110m.json`, `us-10m.json`) and referenced by SAME-
   ORIGIN URL (air-gap rule; re-run build_region_lookup.py if you refresh them). Gate:
