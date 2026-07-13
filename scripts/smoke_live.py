@@ -393,6 +393,58 @@ def run(base: str) -> int:
                 "model returned no chart this run (200+answer ok) — chart emission "
                 "is model-discretionary; the 200 is the regression gate")
 
+    # 5d. statistical charts (Phase A) over BOTH backends ---------------------
+    # The new declarative chart types (histogram/boxplot/…) add render branches
+    # and Vega-Lite transforms. Prove the live pipeline doesn't 500 over EITHER
+    # serialization backend (two-backends rule): a histogram over the DuckDB
+    # upload (native DECIMAL `amount`) and a boxplot over the sqlite demo DB
+    # (`revenue`). A 200 is the HARD gate — a broken transform/render would raise,
+    # not no-op. The specific chart TYPE stays model-discretionary (single /ask,
+    # no retry), so a wrong/absent type is a WARN, and when the model DOES emit a
+    # statistical chart we assert the neutral tag matches what was asked for.
+    print("5d. Statistical charts (histogram/boxplot) — both backends")
+
+    def _neutral_types(answer: dict) -> list[str]:
+        out = []
+        for ch in (answer.get("charts") or []):
+            if isinstance(ch, dict) and ch.get("_neutral"):
+                out.append(ch["_neutral"])
+        return out
+
+    # histogram over the DuckDB upload (native DECIMAL column)
+    hst, _, raw = c.post_json(
+        "/ask", {"question": f"Show the distribution of amount from {tview} as a histogram."},
+        timeout=180)
+    hans = as_json(raw) or {}
+    if hst == 200:
+        asked += 1
+    r.check("Histogram /ask over the DuckDB upload returns 200 (render path, no 500)",
+            hst == 200 and bool((hans.get("answer") or "").strip()),
+            f"status={hst}, types={_neutral_types(hans)}")
+    if "histogram" in _neutral_types(hans):
+        r.ok("Upload histogram rendered as a histogram spec")
+    elif hans.get("charts"):
+        r.warn("Upload histogram type", f"model charted {_neutral_types(hans)} (type is model-discretionary)")
+    else:
+        r.warn("Upload histogram spec", "model returned no chart this run (200+answer ok)")
+
+    # boxplot over the sqlite demo DB (string dates — the other serialization path)
+    bst, _, raw = c.post_json(
+        "/ask", {"question": "Compare the distribution of revenue across regions as a boxplot."},
+        timeout=180)
+    bans = as_json(raw) or {}
+    if bst == 200:
+        asked += 1
+    r.check("Boxplot /ask over the sqlite demo DB returns 200 (render path, no 500)",
+            bst == 200 and bool((bans.get("answer") or "").strip()),
+            f"status={bst}, types={_neutral_types(bans)}")
+    if "boxplot" in _neutral_types(bans):
+        r.ok("Demo boxplot rendered as a boxplot spec")
+    elif bans.get("charts"):
+        r.warn("Demo boxplot type", f"model charted {_neutral_types(bans)} (type is model-discretionary)")
+    else:
+        r.warn("Demo boxplot spec", "model returned no chart this run (200+answer ok)")
+
     # 6. 2-sheet xlsx → both sheets register ----------------------------------
     print("6. Upload 2-sheet .xlsx → both sheets register")
     xlsx = build_xlsx_2sheets()
