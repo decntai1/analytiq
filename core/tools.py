@@ -30,10 +30,18 @@ TOOLS = [
         "function": {
             "name": "make_chart",
             "description": (
-                "Visualize the most recent query results. Provide a NEUTRAL chart spec. "
-                f"Allowed types: {CAPABILITY['chart_types']}. Encoding uses column names: "
-                "line/bar/area/scatter need x,y (optional series); pie needs category,value. "
-                "The latest query rows are bound automatically."
+                "Visualize the most recent query results. Provide a NEUTRAL chart spec "
+                "(never raw Vega-Lite). The latest query rows are bound automatically. "
+                f"Allowed types: {CAPABILITY['chart_types']}. Encoding uses COLUMN NAMES:\n"
+                "- line/bar/area/scatter: x, y (optional series). pie: category, value.\n"
+                "- histogram/density: value (one numeric column; binning/KDE are automatic).\n"
+                "- boxplot: y (numeric); optional x = category to compare distributions.\n"
+                "- heatmap: x, y, color (color is the numeric cell value).\n"
+                "- stacked_bar/stacked_area: x, y, series (set normalize:true for 100%-stacked).\n"
+                "- rolling_line: x, y, optional window (int N, moving average).\n"
+                "For a scatter, add trend:\"linear\" or trend:\"loess\" for a fitted trend line.\n"
+                "Aggregate/compute in SQL first (GROUP BY, or DuckDB stats: corr, regr_slope, "
+                "regr_r2, stddev, quantile_cont); the chart only draws what the query returns."
             ),
             "parameters": {
                 "type": "object",
@@ -42,8 +50,14 @@ TOOLS = [
                     "title": {"type": "string"},
                     "encoding": {
                         "type": "object",
-                        "description": "Map roles to column names, e.g. {\"x\":\"month\",\"y\":\"revenue\",\"series\":\"metric\"}",
+                        "description": "Map roles to column names, e.g. {\"x\":\"month\",\"y\":\"revenue\",\"series\":\"metric\"} or {\"value\":\"order_total\"} for a histogram.",
                     },
+                    "trend": {"type": "string", "enum": ["linear", "loess"],
+                              "description": "Optional fitted trend line for scatter only."},
+                    "window": {"type": "integer",
+                               "description": "Moving-average window (rolling_line only), e.g. 7."},
+                    "normalize": {"type": "boolean",
+                                  "description": "100%-stacked (stacked_bar/stacked_area only)."},
                 },
                 "required": ["type", "encoding"],
             },

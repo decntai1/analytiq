@@ -49,6 +49,11 @@ Tables you may query:
 Rules:
 - Write correct, read-only SQL (SELECT/WITH only) over the tables above. Aggregate in SQL.
 - For visualizations call make_chart with a neutral spec (no data field; rows are bound).
+- For statistical/analysis questions (distributions, correlation, trend, outliers), compute
+  in SQL — DuckDB has corr, regr_slope, regr_intercept, regr_r2, stddev, quantile_cont — then
+  pick the fitting chart: histogram/density (one distribution), boxplot (compare groups),
+  heatmap (two dimensions vs a measure), scatter with trend for correlation, rolling_line for
+  a moving average, stacked_bar/stacked_area for composition over time.
 - You MAY produce more than one chart (up to 4) when the question warrants it: e.g.
   the same data two ways ("as a bar and a pie"), or a broad/"overview" question broken
   into a few distinct query+chart pairs. make_chart charts the MOST RECENT query's
@@ -238,6 +243,11 @@ class Orchestrator:
                 return "Chart limit reached (4). Summarise instead of adding more charts.", last_rows, None
             spec = {"type": args.get("type"), "title": args.get("title", ""),
                     "encoding": args.get("encoding", {})}
+            # optional declarative modifiers (validated by validate_spec; ignored by types
+            # that don't use them). Kept off the spec when absent so nothing distorts.
+            for k in ("trend", "window", "normalize", "maxbins"):
+                if args.get(k) is not None:
+                    spec[k] = args[k]
             try:
                 # validate ON: enforce capability rules. OFF: render whatever was asked.
                 if config.settings.scaffold_validate_chart:
