@@ -52,8 +52,14 @@ def to_vegalite(spec: dict, rows: list[dict]) -> dict:
     # empty / non-plottable fallback: no rows, or the measure column has no numeric
     # data (e.g. charting a text column) -> show the rows as a table, not an empty
     # chart frame. Keeps the answer honest instead of rendering a blank plot. The
-    # "measure" is whichever role carries the numeric magnitude for this type.
-    measure = enc.get("y") or enc.get("value") or enc.get("color")
+    # "measure" is the role carrying the numeric magnitude, which is TYPE-DEPENDENT:
+    # heatmap's y is a nominal axis, so its measure is `color`.
+    if ctype == "heatmap":
+        measure = enc.get("color")
+    elif ctype in ("histogram", "density"):
+        measure = enc.get("value")
+    else:
+        measure = enc.get("y") or enc.get("value") or enc.get("color")
     if not rows or not _has_numeric(rows, measure):
         t = (f"{title} — no chartable data, showing rows".strip(" —")) or "No chartable data"
         return _table(t, rows)
@@ -63,6 +69,10 @@ def to_vegalite(spec: dict, rows: list[dict]) -> dict:
         "title": title,
         "width": "container",
         "data": {"values": rows},
+        # neutral type tag: the rendered Vega mark is lossy (histogram->bar,
+        # rolling_line->line, density->area all collide), so carry the neutral name
+        # for the eval scorer + trace. Vega-Lite ignores unknown top-level keys.
+        "_neutral": ctype,
     }
 
     # --- statistical types (declarative transforms) ------------------------

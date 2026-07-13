@@ -77,9 +77,16 @@ def _chart_mark(spec: dict) -> str | None:
     put the mark at the top level; charts with value labels are LAYERED, where the
     real mark is layer[0] (layer[1] is the 'text' label overlay). The old scorer
     only checked the top-level mark, so every value-labelled chart (single-series
-    line/bar) scored a false miss."""
+    line/bar) scored a false miss.
+
+    Statistical types render to LOSSY marks (histogram->bar, rolling_line->line,
+    density->area all collide), so prefer the '_neutral' tag the renderer stamps —
+    it already speaks the gold vocabulary and needs no _VL_TO_NEUTRAL mapping."""
     if not isinstance(spec, dict):
         return None
+    neutral = spec.get("_neutral")
+    if isinstance(neutral, str):
+        return neutral
     mark = spec.get("mark")
     if isinstance(mark, dict):
         return mark.get("type")

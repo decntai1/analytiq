@@ -39,6 +39,54 @@
       "expect_chart": true,
       "expected_chart_type": "line",
       "notes": "Defined metric (gross_margin). With glossary the formula is given; without it the model must infer revenue-vs-cost itself."
+    },
+    {
+      "id": "q6_revenue_histogram",
+      "question": "Show the distribution of individual sale revenue as a histogram.",
+      "expected_tables": ["sales"],
+      "expect_chart": true,
+      "expected_chart_type": "histogram",
+      "notes": "STATISTICAL (Phase A): one numeric column, binned by the Vega-Lite bin transform. No aggregate needed."
+    },
+    {
+      "id": "q7_revenue_by_product_boxplot",
+      "question": "Compare the distribution of sale revenue across products as a boxplot.",
+      "expected_tables": ["sales"],
+      "expect_chart": true,
+      "expected_chart_type": "boxplot",
+      "notes": "STATISTICAL: distribution comparison across a category. Vega-Lite boxplot mark computes quartiles/whiskers."
+    },
+    {
+      "id": "q8_revenue_heatmap",
+      "question": "Show a heatmap of total revenue by product and month.",
+      "expected_tables": ["sales"],
+      "expect_chart": true,
+      "expected_chart_type": "heatmap",
+      "notes": "STATISTICAL: two dimensions (product x month) vs a measure. SQL aggregates to one row per cell; rect mark renders it."
+    },
+    {
+      "id": "q9_cost_revenue_trend",
+      "question": "Is revenue correlated with cost? Show a scatter with a linear trend line.",
+      "expected_tables": ["sales"],
+      "expect_chart": true,
+      "expected_chart_type": "scatter",
+      "notes": "STATISTICAL: correlation. scatter + trend:\"linear\" (Vega-Lite regression transform). DuckDB corr/regr_slope back the numeric claim."
+    },
+    {
+      "id": "q10_revenue_rolling",
+      "question": "Show a 3-month rolling average of monthly revenue.",
+      "expected_tables": ["sales"],
+      "expect_chart": true,
+      "expected_chart_type": "rolling_line",
+      "notes": "STATISTICAL: moving average via the Vega-Lite window transform (frame = trailing N)."
+    },
+    {
+      "id": "q11_revenue_composition",
+      "question": "Show monthly revenue by product as a stacked area chart.",
+      "expected_tables": ["sales"],
+      "expect_chart": true,
+      "expected_chart_type": "stacked_area",
+      "notes": "STATISTICAL: composition over time. Stacked area (color = series, default stack)."
     }
   ]
 }
