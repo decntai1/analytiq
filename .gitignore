@@ -34,3 +34,6 @@ eval_results.json
 
 # OS
 .DS_Store
+
+# regenerable DB exports (data dumps — never commit)
+db_export*
