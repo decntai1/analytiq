@@ -54,6 +54,10 @@ Rules:
   pick the fitting chart: histogram/density (one distribution), boxplot (compare groups),
   heatmap (two dimensions vs a measure), scatter with trend for correlation, rolling_line for
   a moving average, stacked_bar/stacked_area for composition over time.
+- For "on a map" / by-country / by-state questions use choropleth (region + value, with
+  region_level country or us_state) or geo_points (lat + lon). Query the real geographic
+  column — country names, ISO codes, or US states; region codes are resolved for you. If the
+  data has no such column (only region buckets like EMEA), say so and use a bar chart instead.
 - You MAY produce more than one chart (up to 4) when the question warrants it: e.g.
   the same data two ways ("as a bar and a pie"), or a broad/"overview" question broken
   into a few distinct query+chart pairs. make_chart charts the MOST RECENT query's
@@ -245,7 +249,7 @@ class Orchestrator:
                     "encoding": args.get("encoding", {})}
             # optional declarative modifiers (validated by validate_spec; ignored by types
             # that don't use them). Kept off the spec when absent so nothing distorts.
-            for k in ("trend", "window", "normalize", "maxbins"):
+            for k in ("trend", "window", "normalize", "maxbins", "region_level"):
                 if args.get(k) is not None:
                     spec[k] = args[k]
             try:
