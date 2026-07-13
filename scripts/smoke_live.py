@@ -192,6 +192,17 @@ TYPED_CSV_CONTENT = (
 ).encode()
 TYPED_CSV_ROWS = 4
 
+# A CSV with a REAL geographic column so the choropleth path (Phase B) can resolve
+# region names -> topojson ids deterministically (index/region_lookup). Full country
+# names + an ISO/alias ("US") exercise the frozen lookup end-to-end; every value here
+# resolves, so a rendered map clears the >=80% coverage gate.
+GEO_CSV_CONTENT = (
+    "country,revenue\n"
+    "Germany,120\nFrance,90\nUnited States,300\nBrazil,50\n"
+    "Japan,80\nUS,60\nIndia,110\n"
+).encode()
+GEO_CSV_ROWS = 7
+
 
 def build_xlsx_2sheets() -> bytes | None:
     """A genuine 2-sheet workbook via openpyxl (a project dep). None if unavailable."""
@@ -444,6 +455,66 @@ def run(base: str) -> int:
         r.warn("Demo boxplot type", f"model charted {_neutral_types(bans)} (type is model-discretionary)")
     else:
         r.warn("Demo boxplot spec", "model returned no chart this run (200+answer ok)")
+
+    # 5e. geographic charts (Phase B) — map render + honest refusal -----------
+    # Upload a real country,revenue CSV and ask for a MAP. The choropleth path
+    # resolves country names -> topojson ids server-side (frozen lookup) and joins
+    # them onto the vendored basemap. A 200 is the HARD gate (a broken geoshape/
+    # lookup raises, not no-ops); chart TYPE stays model-discretionary (WARN), and
+    # when a map IS emitted we assert its _neutral tag is 'choropleth' AND that it
+    # carries the topojson basemap (data.url) + resolved lookup values — i.e. a real
+    # map, not a bar-chart fallback. The NEGATIVE half asks for a map over a table
+    # with NO geographic column (the typed CSV: signup_date/amount) and asserts the
+    # honest-refusal path returns 200 — the renderer's <80%-resolve ValueError must
+    # surface as an error the model relays, never a 500.
+    print("5e. Geographic charts (choropleth) — map render + honest no-geo refusal")
+    gst, _, raw = c.post_file("/upload", "geo.csv", GEO_CSV_CONTENT, "text/csv")
+    gup = as_json(raw) or {}
+    gview = gup.get("table")
+    r.check("Country CSV uploads and registers", gst == 200 and gup.get("ok") and bool(gview),
+            f"table={gview}")
+
+    def _choropleths(answer: dict) -> list[dict]:
+        return [ch for ch in (answer.get("charts") or [])
+                if isinstance(ch, dict) and ch.get("_neutral") == "choropleth"]
+
+    mans, mst = {}, 0
+    if gview:
+        for attempt in range(2):
+            q = (f"Show total revenue by country from {gview} on a map." if attempt == 0
+                 else f"From {gview}, map revenue by country. Return a choropleth map.")
+            mst, _, raw = c.post_json("/ask", {"question": q}, timeout=180)
+            mans = as_json(raw) or {}
+            if mst == 200:
+                asked += 1
+            if _choropleths(mans):
+                break
+        r.check("Map /ask over the country upload returns 200 (geoshape path, no 500)",
+                mst == 200 and bool((mans.get("answer") or "").strip()),
+                f"status={mst}, types={_neutral_types(mans)}")
+        maps = _choropleths(mans)
+        if maps:
+            m = maps[0]
+            url = ((m.get("data") or {}).get("url") or "")
+            vals = (((m.get("transform") or [{}])[0].get("from") or {}).get("data") or {}).get("values") or []
+            r.check("Choropleth carries the vendored topojson basemap + resolved regions",
+                    "/static/vendor/" in url and len(vals) > 0,
+                    f"url={url!r}, resolved_regions={len(vals)}")
+        elif mans.get("charts"):
+            r.warn("Country map type", f"model charted {_neutral_types(mans)} (type is model-discretionary)")
+        else:
+            r.warn("Country map spec", "model returned no chart this run (200+answer ok)")
+
+    # NEGATIVE: a map request over data with no geographic column must not 500.
+    nst, _, raw = c.post_json(
+        "/ask", {"question": f"Show amount by signup_date from {tview} on a country map."},
+        timeout=180)
+    nans = as_json(raw) or {}
+    if nst == 200:
+        asked += 1
+    r.check("Map request over non-geographic data refuses honestly (200, no 500)",
+            nst == 200 and bool((nans.get("answer") or "").strip()),
+            f"status={nst}, types={_neutral_types(nans)}")
 
     # 6. 2-sheet xlsx → both sheets register ----------------------------------
     print("6. Upload 2-sheet .xlsx → both sheets register")
