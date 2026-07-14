@@ -27,6 +27,7 @@ services:
       DEPLOY_MODE: cloud
       MULTI_TENANT: "1"
       SCAFFOLD_GLOSSARY_PIN: "1"   # deterministic glossary→table pin ON (eval: recall 0.70→0.90, q5 clears)
+      SCAFFOLD_AGG_BEFORE_JOIN: "1"  # deterministic fan-out fix ON (eval: L2b 0-2/10→10/10 all models, 0 regressions)
     expose:
       - "8000"                  # internal only; not published to host
     volumes:

@@ -269,8 +269,12 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
   retrieval layer. bge-m3 (the embedder-ceiling arm) now OPTIONAL — parked pending Ntest1.
 - AGGREGATE-BEFORE-JOIN (the deterministic fan-out fix — the REASONING-layer sibling of
   glossary_pin) SHIPPED as a SQL-shaping scaffold: `index/agg_before_join.py` +
-  `SCAFFOLD_AGG_BEFORE_JOIN` (code default OFF; NOT yet enabled in prod — the banked eval
-  justifies flipping it, left as a decision). Needs `sqlglot` (pure-Python, in requirements).
+  `SCAFFOLD_AGG_BEFORE_JOIN` (code default OFF; ENABLED in prod via docker-compose.prod.yml env
+  as of the flip — the banked eval justified it). Needs `sqlglot` (pure-Python, in requirements).
+  TRANSPARENCY: when the rewrite fires, orchestrator records BOTH the model's original SQL AND
+  the rewritten query in `sql_log` (the /ask trace) + a server log line — a scaffold that alters
+  the computed number must be auditable. Prod blast radius today is the SQLConnector path only
+  (DuckDB uploads no-op — see parked item).
   Rule: when a model's emitted SQL aggregates a column of the "one" side across a 1-to-many
   join it double-counts (the join fan-out — a wrong number that still runs); the scaffold
   rewrites that scope to pre-aggregate each table before joining. PURE function of (emitted
@@ -289,5 +293,11 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
   defeats every model AND every code-specialist (ladder_full/ladder_specialists), a
   deterministic rule solves it outright — scaffolding substituting for capability at the
   reasoning/SQL layer, mirroring pinning at retrieval.
+  PARKED (record, don't build yet): (a) before any real BYO-database customer, harden
+  `derive_relationships` to prefer DECLARED foreign keys (`inspector.get_foreign_keys`) over the
+  `<entity>_id` name convention, falling back to the convention only when no FKs are declared —
+  real customer schemas won't reliably follow naming; declared FKs remove the heuristic risk.
+  (b) DuckDB-upload `relationships()` so the fix protects the wedge path (tenant CSV uploads) —
+  needs a design pass since uploaded CSVs declare no PKs.
 - Live-keys Stripe checkout has never run; first real checkout is a launch-day step.
 - Keep this file updated in the same commit as any change to the facts above.
