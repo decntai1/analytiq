@@ -267,5 +267,27 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
   negative: labels shift ranking but can't break the ceiling; a deterministic glossary rule
   breaks it exactly where labels couldn't — scaffolding substituting for capability at the
   retrieval layer. bge-m3 (the embedder-ceiling arm) now OPTIONAL — parked pending Ntest1.
+- AGGREGATE-BEFORE-JOIN (the deterministic fan-out fix — the REASONING-layer sibling of
+  glossary_pin) SHIPPED as a SQL-shaping scaffold: `index/agg_before_join.py` +
+  `SCAFFOLD_AGG_BEFORE_JOIN` (code default OFF; NOT yet enabled in prod — the banked eval
+  justifies flipping it, left as a decision). Needs `sqlglot` (pure-Python, in requirements).
+  Rule: when a model's emitted SQL aggregates a column of the "one" side across a 1-to-many
+  join it double-counts (the join fan-out — a wrong number that still runs); the scaffold
+  rewrites that scope to pre-aggregate each table before joining. PURE function of (emitted
+  SQL, schema relationships), never the LLM → model-independent BY CONSTRUCTION. Relationships
+  derived from the schema (single-col PK named `<entity>_id`; a bare `id` surrogate is NOT a
+  cross-table ref — excluded). Wired in `orchestrator._maybe_agg_before_join` (intercepts
+  run_sql when ON; duck-typed on `connector.relationships()`, graceful no-op otherwise — e.g.
+  DuckDB uploads, a follow-up). eval/score.py LEVELS pin `agg_before_join:False` on every
+  level; `--agg-before-join` forces it ON for the live gate. A/B `eval/fanout_fix_ab.py` is an
+  OFFLINE REPLAY of the banked ladder SQL (paired on identical model outputs, zero model calls,
+  same discipline as glossary_pin_ab) → `eval/results/grid_fanout_fix*`: **L2b net-revenue
+  0-2/10 → 10/10 for ALL 7 models (8B..480B + specialists), L5b return-rate 22/70 → 69/70,
+  0 regressions**. The single L5b residual is a wrong-outer-join-projection bug (NULL labels),
+  NOT a fan-out, so the scaffold honestly declines it (the q4-style boundary). Determinism
+  boundary documented in the module + evidence md. The reasoning-arm's matched pair: fan-out
+  defeats every model AND every code-specialist (ladder_full/ladder_specialists), a
+  deterministic rule solves it outright — scaffolding substituting for capability at the
+  reasoning/SQL layer, mirroring pinning at retrieval.
 - Live-keys Stripe checkout has never run; first real checkout is a launch-day step.
 - Keep this file updated in the same commit as any change to the facts above.
