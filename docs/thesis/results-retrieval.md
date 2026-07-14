@@ -7,19 +7,23 @@ _Draft, results chapter. Grounded in `eval/results/grid_stageA.json`, `grid_stag
 ## Overview
 
 The central claim of this thesis is that **deterministic scaffolding can substitute for
-model capability, measurably**. This section tests that claim at the *retrieval* layer —
+model capability, measurably**. By *substitute* we mean something specific: scaffolding
+lets a weak model match a strong one on the measured *reliability* metrics — retrieval
+recall, generation errors, chart validity — not that the 8B model somehow becomes the
+480B. This section tests that claim at the *retrieval* layer —
 the point in the pipeline where a natural-language question is turned into the set of
 tables the answer will be computed over. Retrieval is where the "silent miss" failure mode
 lives: if the schema-RAG stage drops a table the answer needs, every downstream stage
 (SQL, chart, narration) is confidently wrong over partial data, and nothing in the trace
 flags it. The metric that isolates this is **table-recall**: of the tables a gold answer
-requires, what fraction survived into the top-K schema context.
+requires, what fraction survived into the schema context handed to the model — top-K
+semantic retrieval plus any deterministically pinned tables (§Result 3).
 
 The section establishes three linked results:
 
 1. **Retrieval is model-independent, and the scaffolding gradient rescues the weak model.**
    Table-recall at each scaffold level is *byte-identical* across a ~60× span of model
-   sizes; the accuracy that scaffolding buys shows up in the weak model's *generation*
+   sizes; the reliability that scaffolding buys shows up in the weak model's *generation*
    metrics, not its retrieval.
 2. **A frozen semantic label layer moves retrieval in the right direction but cannot break
    the recall ceiling** — a genuine, nuanced-negative result.
@@ -90,8 +94,17 @@ all 20 (scaffold-level × question) cells, the **exact set of retrieved tables w
 byte-identical across all four models — zero cross-model mismatches**. Table-recall is a
 pure function of the scaffold level and the embedder; it does not depend on the language
 model at all. The crux of the thesis — that the deterministic scaffold, not the model, owns
-retrieval — holds across a ~60× capability gap, and the router-on levels (`full`) did not
-re-introduce any model dependence.
+retrieval — holds across a ~60× capability gap.
+
+It is worth separating what is guaranteed here from what is *tested*. At `rag` and
+`rag+val+rep`, model-independence is true **by construction**: the retrieval function
+`relevant_tables(question)` never receives the model, so those columns could not have
+differed across models even in principle — the grid there merely confirms the code does
+what it says. The empirically non-trivial cell is the `full` column. `full` adds intent
+routing, and routing *is* an LLM call sitting upstream of retrieval — so per-model routing
+divergence could have produced different schema contexts, and did not. The `full` column is
+therefore the real evidence: the one LLM touchpoint ahead of retrieval did not re-couple it
+to model size.
 
 Two readings of the recall column matter:
 
@@ -120,8 +133,9 @@ single act of turning on schema-RAG (narrowing 27 tables to a focused top-6) col
 to 0.6 and lifts its chart validity from 0.60 to 0.80. The 20B, 120B, and 480B models sit at
 roughly zero errors at *every* level: they are capable enough to handle the undifferentiated
 dump unaided, so the scaffold has little left to rescue. This is the thesis gradient in its
-cleanest form — **the scaffold's value is largest exactly where model capability is
-smallest**, and it shrinks monotonically as capability grows.
+cleanest form — **the scaffold's value is concentrated entirely in the smallest model**.
+With three of the four models already sitting at ~0 errors, the effect is a step, not a
+smooth curve: the benefit lives at the 8B end and is essentially absent above it.
 
 ## Result 2 — Frozen semantic labels: right direction, ceiling holds (nuanced-negative)
 
@@ -198,6 +212,15 @@ Aggregate table-recall:
 
 **pin OFF 0.700 → pin ON 0.900** — the frozen-labels ceiling of 0.70 is **cleared**.
 
+The 0.90 is not merely "higher" — it is *ceiling-optimal for this scaffold's declared
+scope*. Only q4 names no glossary metric, and it is out of the pin's designed reach; with
+q4 held at its unaided 0.50, the maximum attainable aggregate is
+`(1 + 1 + 1 + 0.5 + 1) / 5 = 0.90`. Pin-ON reaches exactly that: it solves every question
+the rule is *meant* to cover. The claim this supports is deliberately conditional —
+**where a glossary covers the question's vocabulary, the recall ceiling is broken
+deterministically, independent of the model** — and q4 marks the honest edge of that
+condition, not a failure of it.
+
 Per-question:
 
 | id | expected | matched metric | tables pinned | recall OFF | recall ON |
@@ -242,32 +265,68 @@ The matched pair (Result 2 → Result 3) is the strongest single statement of th
 this chapter: where a richer representation *hinted* at the answer but could not commit to
 it, a small deterministic rule — a pure function of the question and a business glossary —
 supplies the missing competence outright, and keeps retrieval model-independent while doing
-it. That model-independence is not incidental: it is the property that lets a weaker,
-on-prem, open-source model reach the same retrieval quality as a frontier model, which is
-what makes the product claim downstream of the thesis viable.
+it. That a weaker, on-prem, open-source model reaches the *same* retrieval quality as a
+frontier model is not a coincidence to be marvelled at — and it is not trivial in the
+dismissive sense either. It holds precisely *because* the architecture removes the model
+from the retrieval path: the equality is manufactured, deliberately, by the design. That
+removal — not the equal numbers it produces — is the contribution, and it is what makes the
+product claim downstream of the thesis (frontier-grade retrieval on commodity, self-hosted
+models) viable.
 
 ## Threats to validity
 
-- **Gold-set size.** Five questions over one demo schema. The results are consistent and
-  mechanistically explained, but the aggregate figures (0.70, 0.90) are coarse — one
-  question is 0.20 of recall. The claims are about *mechanism* (model-independence, the
-  labels-vs-pinning contrast), which the per-question breakdowns support directly; the
-  aggregates should be read as illustrative of that mechanism, not as population estimates.
-- **The embedder ceiling.** The 0.70 semantic ceiling is a property of `potion-base-8M`. A
-  stronger contextual embedder (OpenAI `text-embedding-3-*`, or a larger local model such as
-  `bge-m3`) is the untested lever most likely to move q5 semantically; it is parked pending
-  hardware (`bge-m3` does not fit the current box). The deterministic pin is reported as the
-  scaffold that clears the trap *without* requiring a heavier embedder.
+- **Gold-set size and generalization.** Five questions over a *single* demo schema — one
+  schema family (an ecommerce store), synthetic data, English-language vocabulary. The
+  results are consistent and mechanistically explained, but the aggregate figures (0.70,
+  0.90) are coarse — one question is 0.20 of recall — and everything here is measured on one
+  schema. The claims are about *mechanism* (model-independence, the labels-vs-pinning
+  contrast), which the per-question breakdowns support directly; the aggregates should be
+  read as illustrative of that mechanism, not as population estimates, and generalization to
+  other schema families, non-synthetic data, and non-English vocabulary is untested.
+- **The embedder ceiling is one static-embedder family.** The 0.70 semantic ceiling was
+  measured on `potion-base-8M` and `potion-retrieval-32M` — two *sizes of the same
+  static-embedder family* (`model2vec`/potion). The ceiling claim is therefore specifically
+  about static bag-of-token embedders; *contextual* embedders (OpenAI `text-embedding-3-*`,
+  or a larger local model such as `bge-m3`) are an entirely untested class and the lever most
+  likely to move q5 semantically. That arm is parked pending hardware (`bge-m3` does not fit
+  the current box). The deterministic pin is reported as the scaffold that clears the trap
+  *without* requiring a heavier or contextual embedder.
 - **q4 remains open.** The causal, document-grounded trap is not solved by any scaffold here.
   It is a reasoning-retrieval problem (the answer's evidence is in a document, not the query
   tokens) and is left as future work; it is honestly reported as 0.50 throughout.
 - **Latency is not a clean signal.** All models were served over a shared cloud endpoint;
   wall-clock times were noisy (the 20B model occasionally ran slower than the 120B on the
   same day), so latency is excluded from the substitution argument.
+- **Glossary coverage is a conditional, and the glossary is author-controlled.** The pinning
+  win is strongest on exactly the questions (q2, q5) whose vocabulary the glossary — written
+  by the same author as the gold set — happens to cover, which invites a circularity
+  objection. The honest scoping is that the Result 3 claim is *conditional*: pinning breaks
+  the ceiling **where a glossary covers the question's vocabulary**, and its real-world value
+  scales with glossary coverage. That condition is realistic rather than contrived — metric
+  glossaries (KPI definitions) are standard business artifacts, not an eval-only fixture — and
+  q4, which names no metric, demonstrates the honest out-of-coverage behavior (no pin, no
+  distortion). The pin is not claimed to help where the glossary is silent.
+- **The labeller model is an uncontrolled variable.** The frozen labels (Result 2) were
+  authored by a *single fixed* model (`gpt-oss-20b`). Whether a stronger labeller would write
+  ceiling-breaking labels — e.g. surfacing "margin" for `sales` without seeing the gold
+  question — is untested. It was deliberately not pursued: iterating the labeller against the
+  gold outcome is exactly the gold-tuning the method forbids. A controlled "does labeller
+  quality matter" sweep (multiple blind labellers, held-out questions) is future work.
+- **The generation-layer deltas are single-pass.** The retrieval numbers are deterministic
+  (temperature 0, retrieval is not a model call). The generation metrics in Result 1 (the
+  8B's 3.4 → 0.6 errors/question, chart validity 0.60 → 0.80) come from a **single pass at
+  temperature 0** — the retrieval grid ran `repeats=1`, unlike the reasoning-ladder arm,
+  which repeats each cell 10×. The 3.4 → 0.6 gap is large enough to survive plausible
+  run-to-run noise, but it is one sample per cell, not a repeated mean, and should be read as
+  such.
 - **`none`-level recall is degenerate by construction** (schema dump), and is reported only
   for completeness, never as evidence of retrieval competence.
 
 ## Reproduce
+
+All commands run from `/opt/analytiq` against the prod compose file — read every
+`docker compose` below as `docker compose -f docker-compose.prod.yml` (the repo carries
+several compose files; the app service lives in the prod one).
 
 ```bash
 # Result 1 — model-independence grid (4-model ladder × 4 scaffold levels)
@@ -278,12 +337,26 @@ docker compose exec -e EMBEDDING_MODE=model2vec \
   --levels none rag rag+val+rep full
 # banked raw: eval/results/grid_stageA.json (8B, 20B) + grid_stageB.json (120B, 480B)
 
-# Result 2 — frozen-labels A/B (OFF then ON via SCHEMA_LABELS_PATH)
+# Result 2 — frozen-labels A/B: identical score run, SCHEMA_LABELS_PATH unset (OFF) then set (ON).
+# labels.json is COMMITTED and FROZEN (authored once, blind to gold — see its _meta),
+# so reproduction does NOT require re-labelling; just toggle the env var.
+COMMON="-e EMBEDDING_MODE=model2vec -e DB_URL=sqlite:////app/ecommerce_large.db \
+  -e DOCS_DIR=/app/eval/demo_docs"
+docker compose exec $COMMON -T app \
+  python -m eval.score --models ministral-8b gpt-oss-20b --levels full \
+  --gold gold/gold_set.json --out eval/results/grid_labels_OFF.json          # OFF
+docker compose exec $COMMON -e SCHEMA_LABELS_PATH=/app/labels.json -T app \
+  python -m eval.score --models ministral-8b gpt-oss-20b --levels full \
+  --gold gold/gold_set.json --out eval/results/grid_labels_ON.json           # ON
 # banked raw: eval/results/grid_labels_OFF.json, grid_labels_ON.json
 #   evidence: eval/results/grid_labels_evidence.md
 
-# Result 3 — glossary-pin A/B (labels ON, model2vec)
-python eval/glossary_pin_ab.py
+# Result 3 — glossary-pin A/B (labels ON, model2vec). Self-contained: it sets labels ON
+# for both arms internally and needs only EMBEDDING_MODE + the three paths passed explicitly.
+docker compose exec -e EMBEDDING_MODE=model2vec -T app \
+  python -m eval.glossary_pin_ab \
+  --db-url sqlite:////app/ecommerce_large.db --labels /app/labels.json \
+  --glossary /app/glossary.json --gold gold/gold_set.json
 # banked raw: eval/results/grid_glossary_pin.json
 #   evidence: eval/results/grid_glossary_pin_evidence.md
 ```
