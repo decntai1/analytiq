@@ -1,0 +1,132 @@
+{
+  "_meta": {
+    "experiment": "fanout_fix_ab",
+    "method": "offline replay of banked ladder SQL, OFF vs ON, paired on identical model outputs; deterministic; model-independent by construction",
+    "db": "/tmp/ecommerce_ladder.db",
+    "banked": [
+      "eval/results/ladder_full.json",
+      "eval/results/ladder_specialists.json"
+    ],
+    "relationships": [
+      "orders -1:N-> order_items on order_id",
+      "orders -1:N-> payments on order_id",
+      "orders -1:N-> refunds on order_id",
+      "orders -1:N-> sales on order_id",
+      "orders -1:N-> shipments on order_id",
+      "sales -1:N-> returns on sale_id"
+    ],
+    "traps": [
+      "L2b_net_revenue",
+      "L5b_return_rate_by_product"
+    ]
+  },
+  "per_model": {
+    "devstral-123b": {
+      "L2b_net_revenue": {
+        "off": "0/10",
+        "on": "10/10"
+      },
+      "L5b_return_rate_by_product": {
+        "off": "0/10",
+        "on": "10/10"
+      }
+    },
+    "devstral-small-24b": {
+      "L2b_net_revenue": {
+        "off": "0/10",
+        "on": "10/10"
+      },
+      "L5b_return_rate_by_product": {
+        "off": "0/10",
+        "on": "10/10"
+      }
+    },
+    "gpt-oss-20b": {
+      "L2b_net_revenue": {
+        "off": "2/10",
+        "on": "10/10"
+      },
+      "L5b_return_rate_by_product": {
+        "off": "1/10",
+        "on": "10/10"
+      }
+    },
+    "ministral-8b": {
+      "L2b_net_revenue": {
+        "off": "0/10",
+        "on": "10/10"
+      },
+      "L5b_return_rate_by_product": {
+        "off": "10/10",
+        "on": "10/10"
+      }
+    },
+    "ollama-cloud": {
+      "L2b_net_revenue": {
+        "off": "2/10",
+        "on": "10/10"
+      },
+      "L5b_return_rate_by_product": {
+        "off": "2/10",
+        "on": "10/10"
+      }
+    },
+    "qwen3-coder": {
+      "L2b_net_revenue": {
+        "off": "2/10",
+        "on": "10/10"
+      },
+      "L5b_return_rate_by_product": {
+        "off": "4/10",
+        "on": "9/10"
+      }
+    },
+    "qwen3-coder-next": {
+      "L2b_net_revenue": {
+        "off": "0/10",
+        "on": "10/10"
+      },
+      "L5b_return_rate_by_product": {
+        "off": "5/10",
+        "on": "10/10"
+      }
+    }
+  },
+  "summary": {
+    "L2b_net_revenue": {
+      "off_total": 6,
+      "on_total": 70,
+      "n_total": 70
+    },
+    "L5b_return_rate_by_product": {
+      "off_total": 22,
+      "on_total": 69,
+      "n_total": 70
+    }
+  },
+  "rewrite_fired": {
+    "L2b_net_revenue:no-op": 6,
+    "L2b_net_revenue:fired": 64,
+    "L5b_return_rate_by_product:no-op": 23,
+    "L5b_return_rate_by_product:fired": 47
+  },
+  "regressions": [],
+  "residual_after_on": [
+    {
+      "model": "qwen3-coder",
+      "qid": "L5b_return_rate_by_product",
+      "fired": false,
+      "note": "no recognised fan-out pattern"
+    }
+  ],
+  "example_rewrite": {
+    "L2b_net_revenue": {
+      "original": "SELECT SUM(sales.revenue) - COALESCE(SUM(returns.amount), 0) AS net_revenue FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id;",
+      "rewritten": "SELECT __abj_one.__a0 - COALESCE(__abj_many.__b0, 0) AS net_revenue FROM (SELECT SUM(revenue) AS __a0 FROM sales) AS __abj_one CROSS JOIN (SELECT SUM(amount) AS __b0 FROM returns) AS __abj_many"
+    },
+    "L5b_return_rate_by_product": {
+      "original": "SELECT s.product, SUM(s.revenue) AS total_revenue, COALESCE(SUM(r.amount),0) AS total_returns, COALESCE(SUM(r.amount),0)/SUM(s.revenue) AS return_fraction FROM sales s LEFT JOIN returns r ON s.sale_id = r.sale_id GROUP BY s.product ORDER BY return_fraction DESC;",
+      "rewritten": "SELECT __abj_one.product, __abj_one.__a0 AS total_revenue, COALESCE(__abj_many.__b0, 0) AS total_returns, COALESCE(__abj_many.__b0, 0) / __abj_one.__a0 AS return_fraction FROM (SELECT product, SUM(revenue) AS __a0 FROM sales GROUP BY product) AS __abj_one LEFT JOIN (SELECT sales.product, SUM(amount) AS __b0 FROM sales LEFT JOIN returns ON sales.sale_id = returns.sale_id GROUP BY sales.product) AS __abj_many ON __abj_one.product = __abj_many.product ORDER BY return_fraction DESC"
+    }
+  }
+}
