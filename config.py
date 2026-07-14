@@ -191,6 +191,13 @@ class Settings:
     # glossary), never the LLM. See index/glossary_pin.py.
     scaffold_glossary_pin: bool = os.getenv("SCAFFOLD_GLOSSARY_PIN", "0") == "1"
     glossary_path: str = os.getenv("GLOSSARY_PATH", "./glossary.json")
+    # DETERMINISTIC aggregate-before-join rewrite (SQL-shaping): when a model's emitted
+    # SQL aggregates a column of the "one" side across a 1-to-many join it double-counts
+    # (the join fan-out — a wrong number that still runs). This rewrites that scope to
+    # pre-aggregate each table before joining. Pure function of (SQL, schema relationships),
+    # never the LLM, so the correction is model-independent BY CONSTRUCTION. Default OFF
+    # until the eval result justifies it (see eval/fanout_fix_ab.py). See index/agg_before_join.py.
+    scaffold_agg_before_join: bool = os.getenv("SCAFFOLD_AGG_BEFORE_JOIN", "0") == "1"
     # Frozen, offline-authored table labels enriching the text schema-RAG embeds
     # (retrieval only — never reaches the SQL prompt). Empty = OFF (behaviour is
     # byte-identical to no labels). See index/labels.py + eval/label.py. The eval
@@ -221,6 +228,7 @@ class Settings:
             ("rag", self.scaffold_schema_rag), ("val", self.scaffold_validate_chart),
             ("rep", self.scaffold_repair), ("glo", self.scaffold_glossary),
             ("pin", self.scaffold_glossary_pin), ("rou", self.scaffold_router),
+            ("abj", self.scaffold_agg_before_join),
         ]
         on = [name for name, v in bits if v]
         return "+".join(on) if on else "none"
@@ -244,6 +252,7 @@ def apply_scaffold(level: dict) -> None:
         scaffold_glossary=level.get("glossary", settings.scaffold_glossary),
         scaffold_glossary_pin=level.get("glossary_pin", settings.scaffold_glossary_pin),
         scaffold_router=level.get("router", settings.scaffold_router),
+        scaffold_agg_before_join=level.get("agg_before_join", settings.scaffold_agg_before_join),
     )
 
 

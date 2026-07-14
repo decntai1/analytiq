@@ -45,6 +45,32 @@ class SQLConnector(StructuredConnector):
             out[table] = desc
         return out
 
+    def columns_by_table(self) -> dict[str, list[str]]:
+        insp = inspect(self.engine)
+        return {t: [c["name"] for c in insp.get_columns(t)] for t in insp.get_table_names()}
+
+    def primary_keys_by_table(self) -> dict[str, list[str]]:
+        insp = inspect(self.engine)
+        out: dict[str, list[str]] = {}
+        for t in insp.get_table_names():
+            try:
+                out[t] = list(insp.get_pk_constraint(t).get("constrained_columns") or [])
+            except Exception:
+                out[t] = []
+        return out
+
+    def relationships(self) -> list:
+        """Derived 1-to-many relationships for the aggregate-before-join scaffold.
+        Pure function of the schema (PKs + column names) — see index.agg_before_join."""
+        from index.agg_before_join import derive_relationships
+        return derive_relationships(self.primary_keys_by_table(), self.columns_by_table())
+
+    @property
+    def sqlglot_dialect(self) -> str:
+        """Best-effort sqlglot dialect name for the active engine (for SQL rewriting)."""
+        name = getattr(self.engine.dialect, "name", "") or ""
+        return {"postgresql": "postgres", "mssql": "tsql", "mariadb": "mysql"}.get(name, name) or "sqlite"
+
     def _guard(self, query: str) -> None:
         q = query.strip().rstrip(";")
         if ";" in q:

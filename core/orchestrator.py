@@ -226,10 +226,30 @@ class Orchestrator:
                 "scaffold": config.settings.scaffold_label(),
                 "model": model_name or config.settings.default_model}
 
+    def _maybe_agg_before_join(self, q: str) -> str:
+        """Deterministic aggregate-before-join scaffold (model-independent by construction):
+        if enabled and the emitted SQL aggregates a one-side column across a 1-to-many join,
+        rewrite it to pre-aggregate before joining. No-op unless the connector can supply
+        schema relationships. Any failure returns the query unchanged (never breaks a run)."""
+        if not config.settings.scaffold_agg_before_join or not q:
+            return q
+        try:
+            rels = self.connector.relationships()
+            if not rels:
+                return q
+            cols = self.connector.columns_by_table()
+            dialect = getattr(self.connector, "sqlglot_dialect", "sqlite")
+        except Exception:
+            return q  # connector doesn't expose relationships -> scaffold is a no-op
+        from index.agg_before_join import rewrite
+        new_q, fired, _ = rewrite(q, rels, cols, dialect=dialect)
+        return new_q if fired else q
+
     def _dispatch(self, name, args, last_rows, charts, citations, sql_log):
         """Returns (content_for_model, last_rows, error_or_None)."""
         if name == "run_sql":
             q = args.get("query", "")
+            q = self._maybe_agg_before_join(q)
             sql_log.append(q)
             try:
                 qr = self.connector.run_query(q)

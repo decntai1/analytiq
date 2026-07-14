@@ -50,11 +50,14 @@ _VL_TO_NEUTRAL = {"bar": "bar", "line": "line", "area": "area", "point": "scatte
 # and prod now runs SCAFFOLD_GLOSSARY_PIN=1 — without the explicit False these levels
 # would inherit the env flag and silently contaminate a re-run. Pinning is measured only
 # by its own A/B (eval/glossary_pin_ab.py), never here.
+# agg_before_join is pinned False on EVERY level too (same reasoning as glossary_pin: the
+# banked ladder grids were measured without it). The fan-out fix is measured by its own A/B
+# (eval/fanout_fix_ab.py) and can be forced ON here with --agg-before-join for a live check.
 LEVELS = {
-    "none":        {"schema_rag": False, "validate_chart": False, "repair": False, "glossary": False, "glossary_pin": False, "router": False},
-    "rag":         {"schema_rag": True,  "validate_chart": False, "repair": False, "glossary": False, "glossary_pin": False, "router": False},
-    "rag+val+rep": {"schema_rag": True,  "validate_chart": True,  "repair": True,  "glossary": False, "glossary_pin": False, "router": True},
-    "full":        {"schema_rag": True,  "validate_chart": True,  "repair": True,  "glossary": True,  "glossary_pin": False, "router": True},
+    "none":        {"schema_rag": False, "validate_chart": False, "repair": False, "glossary": False, "glossary_pin": False, "router": False, "agg_before_join": False},
+    "rag":         {"schema_rag": True,  "validate_chart": False, "repair": False, "glossary": False, "glossary_pin": False, "router": False, "agg_before_join": False},
+    "rag+val+rep": {"schema_rag": True,  "validate_chart": True,  "repair": True,  "glossary": False, "glossary_pin": False, "router": True,  "agg_before_join": False},
+    "full":        {"schema_rag": True,  "validate_chart": True,  "repair": True,  "glossary": True,  "glossary_pin": False, "router": True,  "agg_before_join": False},
 }
 
 
@@ -431,7 +434,8 @@ def write_evidence(rows: list, path: str, meta: dict) -> None:
 
 
 def run(models: list[str], levels: list[str], gold_path: str, out_path: str,
-        pin_tables: bool = False, repeats: int = 1, evidence_path: str | None = None) -> None:
+        pin_tables: bool = False, repeats: int = 1, evidence_path: str | None = None,
+        agg_before_join: bool = False) -> None:
     gold = load_gold(gold_path)
     orch = build_orchestrator()
     rows = []
@@ -439,6 +443,10 @@ def run(models: list[str], levels: list[str], gold_path: str, out_path: str,
     for model in models:
         for level in levels:
             config.apply_scaffold(LEVELS[level])
+            # --agg-before-join forces the fan-out scaffold ON over the level's default
+            # (kept OFF in LEVELS); apply_scaffold preserves the other flags just set.
+            if agg_before_join:
+                config.apply_scaffold({"agg_before_join": True})
             # orchestrator reads config.settings live; rebuild not needed
             agg = {"table_recall": [], "chart_ok": [], "docs_ok": [], "error_count": [],
                    "latency": [], "answer_correct": []}
@@ -506,6 +514,7 @@ def run(models: list[str], levels: list[str], gold_path: str, out_path: str,
     ev_path = evidence_path or (out_path.rsplit(".", 1)[0] + "_evidence.md")
     write_evidence(rows, ev_path, {
         "levels": levels, "pin_tables": pin_tables, "repeats": repeats,
+        "agg_before_join": agg_before_join,
         "embedding": os.getenv("EMBEDDING_MODE"), "db": config.settings.db_url,
     })
 
@@ -527,10 +536,13 @@ def main() -> None:
     ap.add_argument("--evidence", metavar="PATH", default=None,
                     help="human-readable evidence log path (default: <out>_evidence.md). "
                          "Always written — every run is thesis-citable evidence.")
+    ap.add_argument("--agg-before-join", action="store_true",
+                    help="force the deterministic aggregate-before-join scaffold ON (fan-out fix). "
+                         "OFF in every level by default; use for the live fan-out gate.")
     args = ap.parse_args()
     models = ["stub"] if args.stub else args.models
     run(models, args.levels, args.gold, args.out, pin_tables=args.pin_tables,
-        repeats=args.repeats, evidence_path=args.evidence)
+        repeats=args.repeats, evidence_path=args.evidence, agg_before_join=args.agg_before_join)
 
 
 if __name__ == "__main__":
