@@ -2,6 +2,7 @@
 openai>=1.40            # OpenAI-compatible adapter (OpenAI, Grok, Ollama, vLLM, ...)
 anthropic>=0.40         # Claude native adapter
 sqlalchemy>=2.0         # SQL connector (Postgres, MySQL, SQL Server, SQLite, warehouses)
+sqlglot>=25             # deterministic aggregate-before-join SQL rewrite (pure-Python, no native deps)
 fastapi>=0.110
 uvicorn>=0.29
 pydantic>=2.0
