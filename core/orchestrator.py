@@ -26,8 +26,11 @@ function of scaffolding-level across model sizes:
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Any
+
+_log = logging.getLogger("analytiq.scaffold")
 
 import config
 from connectors.base import StructuredConnector
@@ -226,33 +229,45 @@ class Orchestrator:
                 "scaffold": config.settings.scaffold_label(),
                 "model": model_name or config.settings.default_model}
 
-    def _maybe_agg_before_join(self, q: str) -> str:
+    def _maybe_agg_before_join(self, q: str) -> tuple[str, str | None]:
         """Deterministic aggregate-before-join scaffold (model-independent by construction):
         if enabled and the emitted SQL aggregates a one-side column across a 1-to-many join,
         rewrite it to pre-aggregate before joining. No-op unless the connector can supply
-        schema relationships. Any failure returns the query unchanged (never breaks a run)."""
+        schema relationships. Any failure returns the query unchanged (never breaks a run).
+
+        Returns (query_to_execute, original_if_rewritten): the second element is the model's
+        ORIGINAL SQL when the scaffold fired (for the audit trail), else None."""
         if not config.settings.scaffold_agg_before_join or not q:
-            return q
+            return q, None
         try:
             rels = self.connector.relationships()
             if not rels:
-                return q
+                return q, None
             cols = self.connector.columns_by_table()
             dialect = getattr(self.connector, "sqlglot_dialect", "sqlite")
         except Exception:
-            return q  # connector doesn't expose relationships -> scaffold is a no-op
+            return q, None  # connector doesn't expose relationships -> scaffold is a no-op
         from index.agg_before_join import rewrite
         new_q, fired, _ = rewrite(q, rels, cols, dialect=dialect)
-        return new_q if fired else q
+        return (new_q, q) if fired else (q, None)
 
     def _dispatch(self, name, args, last_rows, charts, citations, sql_log):
         """Returns (content_for_model, last_rows, error_or_None)."""
         if name == "run_sql":
             q = args.get("query", "")
-            q = self._maybe_agg_before_join(q)
-            sql_log.append(q)
+            q_exec, original = self._maybe_agg_before_join(q)
+            if original is not None:
+                # The scaffold silently changes the computed number, so the trace records
+                # BOTH what the model wrote AND what actually ran — auditable by design.
+                sql_log.append(original)
+                sql_log.append("-- [aggregate-before-join scaffold: corrected join fan-out] -->\n"
+                               + q_exec)
+                _log.info("aggregate-before-join corrected a fan-out query:\n  from: %s\n  to:   %s",
+                          " ".join(original.split()), " ".join(q_exec.split()))
+            else:
+                sql_log.append(q_exec)
             try:
-                qr = self.connector.run_query(q)
+                qr = self.connector.run_query(q_exec)
             except Exception as e:
                 return "", last_rows, f"SQL error: {e}"
             note = " (truncated)" if qr.truncated else ""
