@@ -83,6 +83,9 @@ spread visible, not a single shot. The full ladder is 4 models × 9 questions ×
 names its own columns) and compares to `expected_value` with type-appropriate tolerance
 (0.5% relative on revenue totals; a fraction-vs-percent reading of the ambiguous rate prompts
 is accepted). A query that runs but returns the wrong number scores a miss — the entire point.
+Because Result 3 is a *paired* OFF/ON comparison graded by this same function at the same
+tolerance, any leniency in the grader (the fraction-vs-percent acceptance) cancels in the
+delta: it applies identically to both arms, so it cannot manufacture the OFF→ON improvement.
 
 ## Result 1 — The wall is the fan-out, not complexity
 
@@ -97,8 +100,11 @@ Answer-correctness (x/10) at `full`, retrieval pinned, over the four-model ladde
 
 The striking thing is what the models *can* do. Nested two-level aggregation (L3a), window
 functions with partitioning (L4a), running totals (L4b), lag-based growth rates (L5a) — the
-"hard SQL" — are cleared at or near 10/10 across the whole ladder. Raw complexity is not the
-wall.
+"hard SQL" — are cleared at or near 10/10 across the whole ladder. On this instrument, failure
+is *orthogonal* to the difficulty gradient it tests: the models clear every harder rung and
+fall only on the fan-out. That is a statement about one complexity gradient — the nine rungs
+built here — not a survey of SQL difficulty in general; the claim is that *within* a gradient
+that provably separates easy from hard, the fan-out failure does not track difficulty.
 
 **L2b is.** Net revenue — arguably a *simpler* query than the window functions the same
 models ace — collapses to **0–2/10 for every model across the ~60× span**. The reason is
@@ -128,14 +134,15 @@ The specialist probe (10 repeats each) says otherwise:
 | devstral-123b | **0/10** | 0/10 |
 | qwen3-coder-next | **0/10** | 5/10 |
 
-Every code-specialist fails L2b outright — 0/10, worse than the general ladder's 2/10 ceiling.
-Two of the three are worse on L5b than the 8B general model. Specialization changes the SQL
+Every code-specialist fails L2b outright — 0/10, no better than the general ladder's 2/10
+ceiling (with n=10 per cell, 0 vs. 2 is the same floor, not a defensible "worse"). Two of the
+three also trail the 8B general model on L5b. Specialization changes the SQL
 these models are fluent in; it does not change whether they reach for the fan-out shape. The
 scoped, defensible claim — the reliability framing again — is: **no tested model or code
 specialist made the fan-out reliable across the combined 420 runs** (360 ladder + 60
 specialist), so reliability here has to come from somewhere other than model selection.
 
-## Result 3 — Deterministic aggregate-before-join: the fan-out solved
+## Result 3 — Deterministic aggregate-before-join: the fan-out family cleared
 
 The lever is *deterministic* rather than a bigger or more specialized model. The
 **aggregate-before-join scaffold** (`index/agg_before_join.py`, flag `SCAFFOLD_AGG_BEFORE_JOIN`)
@@ -173,10 +180,13 @@ trap):
 | **L5b** return rate | 22 / 70 | 69 / 70 |
 | regressions | — | **0** |
 
-Per model, the clean wall is cleared **uniformly**: L2b goes to **10/10 for all seven
-models** — ministral-8b, gpt-oss-20b, the 120B, the 480B, and all three specialists — from a
-floor of 0–2/10. The 8B and the 480B end at the identical 10/10, which is the whole point:
-the reliability was supplied by the rule, not the model.
+This is a solve for the *recognised single-join fan-out family* — the family the rule is
+scoped to, and the dominant defect on this ladder — not for arbitrary SQL error (the threats
+and the L5b residual below are explicit about the boundary). Within that scope the clean wall
+is cleared **uniformly**: L2b goes to **10/10 for all seven models** — ministral-8b,
+gpt-oss-20b, the 120B, the 480B, and all three specialists — from a floor of 0–2/10. The 8B
+and the 480B end at the identical 10/10, which is the whole point: the reliability was supplied
+by the rule, not the model.
 
 Three properties, each mapping to something a deterministic scaffold must have to be
 defensible:
@@ -184,11 +194,16 @@ defensible:
 - **It breaks the wall where capability could not (L2b).** The trap that no model or
   specialist made reliable becomes reliable for all of them, because the rewrite computes the
   join-cardinality-correct number regardless of which model emitted the query.
-- **It does not distort what already works.** Zero regressions across 140 paired runs: the
-  already-correct queries (the 8B's L5b CTEs, the models' occasional correct subquery forms)
-  are recognised as *not* the anti-pattern and passed through untouched — the rewrite fired on
-  111 of 140 runs and no-op'd the rest. A legitimate many→one aggregate (L2a's `sales`→`orders`
-  join) is likewise never touched.
+- **It does not distort what already works, and fires on precisely the defect.** Zero
+  regressions across 140 paired runs: the already-correct queries (the 8B's L5b CTEs, the
+  models' occasional correct subquery forms) are recognised as *not* the anti-pattern and
+  passed through untouched — the rewrite fired on 111 of 140 runs and no-op'd the rest, and a
+  legitimate many→one aggregate (L2a's `sales`→`orders` join) is likewise never touched. The
+  no-ops line up almost one-to-one with the *already-correct* runs: L2b's 6 no-ops are exactly
+  its 6 OFF-correct runs (the rewrite never once fired on a query that was already right), and
+  L5b's 23 no-ops are its 22 OFF-correct runs plus the single non-fan-out projection bug below.
+  That near-perfect alignment is empirical evidence the detector fires on the fan-out defect and
+  nothing else — the reasoning-layer analogue of the retrieval chapter's ceiling-optimality.
 - **It respects its own boundary.** The single residual miss (L5b 69/70) is a `qwen3-coder`
   run that selects the *nullable side* of its own LEFT JOIN, yielding NULL product labels — a
   wrong-projection bug, **not** a fan-out. The scaffold honestly declines it, exactly the
@@ -217,6 +232,26 @@ worth most exactly where the model is weakest.
 
 ## Threats to validity
 
+- **The relationship rule rests on a naming convention this schema satisfies by construction.**
+  The rewrite derives its 1-to-many relationships from the `<entity>_id` primary-key convention
+  (`sale_id` ⇒ `sales`), and the benchmark schema follows that convention because the *same
+  author* wrote `build_ladder_db.py` and the rewriter — the same circularity shape as the
+  glossary-coverage bullet in the retrieval chapter, and it deserves the same conditional-claim
+  treatment. The honest claim is conditional: **where the relationships are derivable — from
+  declared foreign keys, or from conventional `<entity>_id` naming — the fix applies.** The
+  convention is realistic (it is the dominant SMB/warehouse idiom), but it is author-satisfied
+  here, so the number is an existence proof on a compliant schema, not evidence the convention
+  holds in the wild. The production hardening — prefer *declared* foreign keys
+  (`inspector.get_foreign_keys`) and fall back to the naming convention only when none are
+  declared — is recorded as parked; it removes the heuristic risk for real customer schemas
+  entirely.
+- **The paired replay grades the query result, not the model's relayed answer.** The OFF/ON A/B
+  re-executes the rewritten SQL and grades its result directly. That assumes a live agent loop
+  would relay the corrected result faithfully into its final answer — which the offline replay
+  does not exercise. The in-loop path *was* confirmed live (the orchestrator rewriting a real
+  model's fan-out and the answer grading correct), but for **one model, one run**, not across
+  the ladder; the strong 70/70 / 69/70 numbers are the deterministic replay, and the live loop
+  is a single-point confirmation on top of it.
 - **The dedicated NL→SQL specialists were not tested.** The specialist probe covers
   *tool-calling* code models (devstral, qwen3-coder-next). The purpose-built text-to-SQL
   adapters (`sqlcoder`, `duckdb-nsql`) are completion-only and not hosted on the tool-calling
@@ -259,13 +294,27 @@ into a tempdir (it is regenerable and not committed).
 DEMO_DB=/tmp/ecommerce_ladder.db DEMO_DOCS=/tmp/demo_docs \
   docker compose exec -T app python eval/build_ladder_db.py
 
-# Results 1 & 2 — the reasoning ladder (retrieval pinned, 10 repeats). Banked raw:
-#   eval/results/ladder_full.json (4-model ladder, 360 runs)
-#   eval/results/ladder_specialists.json (3 code specialists, 60 runs)
+# Result 1 — the reasoning ladder, 4-model ladder × 9 rungs × 10 repeats = 360 runs.
+# (No DOCS_DIR: the ladder questions are SQL-only — docs_ok is trivially true on every run —
+#  so document retrieval is immaterial here, unlike the retrieval grid. Banked meta records
+#  none, so this command is faithful.) Banked raw: eval/results/ladder_full.json
 docker compose exec -e EMBEDDING_MODE=model2vec -e DB_URL=sqlite:////tmp/ecommerce_ladder.db -T app \
   python -m eval.score --models ministral-8b gpt-oss-20b ollama-cloud qwen3-coder \
   --levels full --pin-tables --repeats 10 --gold gold/reasoning_ladder.json \
   --out eval/results/ladder_full.json
+
+# Result 2 — the specialist probe, on the two trap rungs only (3 models × {L2b,L5b} × 10 = 60).
+# score.py has no per-question filter, so run it over a gold restricted to the two traps.
+docker compose exec -e EMBEDDING_MODE=model2vec -e DB_URL=sqlite:////tmp/ecommerce_ladder.db -T app \
+  sh -c 'python - <<PY
+import json
+g=json.load(open("gold/reasoning_ladder.json"))
+g["items"]=[i for i in g["items"] if i["id"] in ("L2b_net_revenue","L5b_return_rate_by_product")]
+json.dump(g, open("/tmp/traps.json","w"))
+PY
+  python -m eval.score --models devstral-small-24b devstral-123b qwen3-coder-next \
+    --levels full --pin-tables --repeats 10 --gold /tmp/traps.json \
+    --out eval/results/ladder_specialists.json'
 
 # Result 3 — aggregate-before-join A/B (offline replay of the banked SQL; deterministic,
 # zero model calls). Writes grid_fanout_fix.json + grid_fanout_fix_evidence.md.
