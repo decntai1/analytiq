@@ -218,6 +218,19 @@ class Settings:
     # accounts / tiers
     accounts_db: str = os.getenv("ACCOUNTS_DB", "./data/accounts.db")
 
+    # --- forecasting (deterministic, form-driven; NOT a scaffold flag) ------
+    # core/forecast.py aggregates a series via read-only SQL then fits a fixed
+    # statsmodels model. Honesty gates, not tunables the LLM touches:
+    #   min_points  — refuse below this (a fit on too few points is a guess).
+    #   min_cycles  — full seasonal cycles required before fitting seasonality;
+    #                 below it, drop to a trend/level model (never fake a season).
+    #   max_horizon — cap forecast steps (extrapolating far past the data is dishonest).
+    #   default_ci  — prediction-interval coverage; the band IS the honesty, always shown.
+    forecast_min_points: int = int(os.getenv("FORECAST_MIN_POINTS", "8"))
+    forecast_min_cycles: int = int(os.getenv("FORECAST_MIN_CYCLES", "2"))
+    forecast_max_horizon: int = int(os.getenv("FORECAST_MAX_HORIZON", "60"))
+    forecast_default_ci: float = float(os.getenv("FORECAST_DEFAULT_CI", "0.8"))
+
     @property
     def is_onprem(self) -> bool:
         return self.deploy_mode == "onprem"

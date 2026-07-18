@@ -114,6 +114,9 @@ powered the box off once) and pure dead weight for cloud prod
 (EMBEDDING_MODE=openai). It's only needed for on-prem local embeddings. If a
 pip step runs on a box where /tmp is a small tmpfs, point TMPDIR at the big
 disk first (a scrubbed `env -i` or Docker build layer resets it to /tmp).
+statsmodels IS an allowed base dep (dry-run-verified against the pinned pandas
+3.0.3 / numpy 2.5.1: adds only scipy+patsy, ~45MB manylinux wheels, NO torch) —
+it powers core/forecast.py and nothing else; the /ask path never imports it.
 
 ## Post-deploy verification (required gate)
 The five batteries prove the code in isolation (tempdir). They do NOT test the

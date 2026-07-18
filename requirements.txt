@@ -14,6 +14,11 @@ vl-convert-python>=1.0 # render charts to PNG for decks/export (deterministic)
 
 # connectors
 duckdb>=1.0             # files / CSV / Parquet connector + uploads
+statsmodels>=0.14      # deterministic forecasting (Holt-Winters / ETS + intervals). Pulls
+#                         # scipy+patsy (~45MB manylinux wheels, TORCH-FREE — numpy/pandas
+#                         # already satisfy it). Fixed parameterized functions, NOT a code
+#                         # interpreter: same determinism boundary as the workbench ops. Used
+#                         # ONLY by core/forecast.py; the /ask path never imports it.
 pypdf>=4.0            # PDF ingestion for document-RAG
 openpyxl==3.1.5        # .xlsx uploads
 pandas==3.0.3          # load-bearing: workbench DuckDB .df(), profiling, .xlsx uploads. Pinned to batteries-green version — pandas 3.x has breaking changes; do not float.
