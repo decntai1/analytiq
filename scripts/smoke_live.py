@@ -205,6 +205,19 @@ GEO_CSV_CONTENT = (
 GEO_CSV_ROWS = 7
 
 
+def build_forecast_csv(n: int = 24) -> bytes:
+    """A monthly series (DuckDB types `month` -> DATE, `sales` -> DOUBLE) with a
+    trend + clean season + a deterministic irregular wiggle, so a fit has real
+    residual variance and a non-degenerate band. Deterministic (no randomness)."""
+    import math
+    lines = ["month,sales"]
+    for i in range(n):
+        y, mth = 2022 + i // 12, i % 12 + 1
+        val = 1000 + 30 * i + 200 * math.sin(2 * math.pi * (i % 12) / 12) + 40 * math.sin(i * 2.399)
+        lines.append(f"{y}-{mth:02d}-01,{round(val, 2)}")
+    return ("\n".join(lines) + "\n").encode()
+
+
 def build_xlsx_2sheets() -> bytes | None:
     """A genuine 2-sheet workbook via openpyxl (a project dep). None if unavailable."""
     try:
@@ -516,6 +529,55 @@ def run(base: str) -> int:
     r.check("Map request over non-geographic data refuses honestly (200, no 500)",
             nst == 200 and bool((nans.get("answer") or "").strip()),
             f"status={nst}, types={_neutral_types(nans)}")
+
+    # 5f. Forecasting (deterministic, form-driven, NO LLM) --------------------
+    # Drive the exact form path end-to-end: upload a 24-month series, the metadata
+    # endpoint lists forecastable columns, and POST /forecast returns 200 with 6
+    # forecast points, each carrying a non-degenerate prediction interval (the band
+    # IS the honesty) plus the rendered layered chart spec. No LLM, no credit spend.
+    # NEGATIVE: a 5-point series must refuse HONESTLY (422), never a 500. Rides the
+    # DuckDB upload path (native DATE) — the serialization surface 5c guards.
+    print("5f. Forecasting — deterministic form path + honest refusal")
+    fst, _, raw = c.post_file("/upload", "forecast.csv", build_forecast_csv(24), "text/csv")
+    fup = as_json(raw) or {}
+    fview = fup.get("table")
+    r.check("Forecast CSV (24 monthly points) uploads and registers",
+            fst == 200 and fup.get("ok") and bool(fview), f"table={fview}")
+    if fview:
+        st, _, raw = c.get(f"/forecast/columns?table={fview}")
+        fcol = as_json(raw) or {}
+        r.check("/forecast/columns lists a time + numeric candidate",
+                st == 200 and fcol.get("time_candidates") and fcol.get("value_candidates"),
+                f"time={fcol.get('time_candidates')}, value={fcol.get('value_candidates')}")
+        tcol = (fcol.get("time_candidates") or ["month"])[0]
+        vcol = (fcol.get("value_candidates") or ["sales"])[0]
+        st, _, raw = c.post_json("/forecast",
+                                 {"table": fview, "time_col": tcol, "value_col": vcol,
+                                  "horizon": 6, "period": "M", "method": "auto"}, timeout=120)
+        fc = as_json(raw) or {}
+        pts = fc.get("forecast") or []
+        band_ok = len(pts) == 6 and all(
+            isinstance(p, dict) and p.get("lower") is not None
+            and p["upper"] > p["lower"] and p["lower"] <= p["y"] <= p["upper"] for p in pts)
+        r.check("POST /forecast returns 6 points, each with a non-degenerate interval",
+                st == 200 and band_ok,
+                f"status={st}, n={len(pts)}, method={fc.get('method_used')}")
+        chart = fc.get("chart") or {}
+        r.check("Forecast returns a rendered layered chart spec + method note",
+                chart.get("_neutral") == "forecast" and len(chart.get("layer") or []) == 3
+                and bool(fc.get("method_note")),
+                f"neutral={chart.get('_neutral')}, layers={len(chart.get('layer') or [])}")
+    # NEGATIVE: a too-short series must refuse honestly (422), never a 500
+    sst, _, raw = c.post_file("/upload", "forecast_short.csv", build_forecast_csv(5), "text/csv")
+    sview = (as_json(raw) or {}).get("table")
+    if sview:
+        st, _, raw = c.post_json("/forecast",
+                                 {"table": sview, "time_col": "month", "value_col": "sales",
+                                  "horizon": 6, "period": "M", "method": "auto"}, timeout=60)
+        sj = as_json(raw) or {}
+        r.check("Too-short series refuses honestly (422, not 500)",
+                st == 422 and bool(sj.get("detail")),
+                f"status={st}, detail={(sj.get('detail') or '')[:70]}")
 
     # 6. 2-sheet xlsx → both sheets register ----------------------------------
     print("6. Upload 2-sheet .xlsx → both sheets register")

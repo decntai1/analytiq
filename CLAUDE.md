@@ -128,6 +128,9 @@ health+landing (5 tiers), TLS cert valid/for-domain/unexpired, register→Free+1
 credits, CSV upload+row count, live /ask → answer+chart spec+sql_log trace,
 2-sheet xlsx (both sheets), dashboard pin→persist→refresh (SQL only, no LLM),
 workbench session→profile→propose→apply→download with source sha256 unchanged,
+FORECAST (§5f: upload a 24-month CSV → /forecast/columns lists a time+numeric
+candidate → POST /forecast returns 6 points each with a non-degenerate interval
++ a 3-layer chart spec, NO LLM/credits; negative: a 5-point series → honest 422),
 credit metering, billing DISABLED (config configured:false, checkout 503 not
 500). Run under the app venv so the xlsx path (openpyxl) runs instead of SKIPs.
 Rule: this must pass GREEN against the live site before billing is wired, and
@@ -158,7 +161,9 @@ core/accounts.py (users/sessions/credits/conversations, change_password) ·
 api/routes_accounts.py (/auth/*, /chats) · api/billing_routes.py (/billing/*)
 · core/tenancy.py (Tenant + stripe_customer_id; auth.store() is THE shared
 singleton) · core/workbench.py + api/workbench_routes.py (+recipes) ·
-core/dashboards.py + api/dashboard_routes.py · api/static/: landing.html
+core/dashboards.py + api/dashboard_routes.py ·
+core/forecast.py + api/forecast_routes.py (deterministic forecasting) ·
+api/static/: landing.html
 (5 tiers), login.html, index.html (chat + chips + drawers + pin), workbench.html,
 dashboard.html · config.py: MODEL_REGISTRY, scaffold flags, PLANS, PLAN_MODELS
 (per-tier model gating; /ask enforces server-side, /models filters by plan).
@@ -196,6 +201,36 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
    Stripe pass (register /billing/webhook now the URL is live, add keys).
 
 ## Standing items
+- FORECASTING (shipped, form-driven, fully separate from /ask): `core/forecast.py`
+  (deterministic module) + `api/forecast_routes.py` (GET /forecast/columns, POST
+  /forecast) + a 📈 button on each data-drawer table (index.html) opening a form
+  (time/value column, horizon, period auto|D|W|M|Q|Y, method auto|ses|holt|
+  holt_winters|linear). It aggregates the series with ordinary read-only SQL
+  (date_trunc GROUP BY via the tenant connector), reindexes to a regular freq, and
+  fits statsmodels ETS with an OLS linear fallback — a FIXED parameterized function,
+  NOT a code interpreter (same determinism boundary as the workbench ops; the third
+  point on the declarative-transforms ↔ arbitrary-code spectrum — thesis design-space
+  material). NO LLM anywhere on this path (asserted in review): no forecast tool, no
+  forecasting vocabulary in SYSTEM beyond ONE line steering "forecast/predict" asks to
+  the button; the make_chart enum uses viz.spec.LLM_CHART_TYPES (= chart_types minus
+  `forecast`), so the model never sees the type. The band IS the honesty — prediction
+  intervals are always computed + shown; honest refusals are ForecastError→422 (never
+  500): <8 points, >50% gap-filled, non-numeric value, unparseable time, bad horizon.
+  Chart is a server-only neutral `forecast` type (viz/spec.py + render_vegalite.py):
+  3-layer spec = interval band (area y..y2) + solid history line + dashed forecast line.
+  Determinism proven byte-for-byte (tests/test_forecast.py) and E2E over a live
+  ephemeral instance (upload→columns→forecast→chart→honest 422). Gate: smoke_live.py §5f.
+  KEY FIX: forecast_routes reuses app.py's SHARED TenantRuntime (lazy import) — a private
+  runtime went stale the moment a table was uploaded through another router.
+  PARKED (record, don't build): (a) v2 ideas — multi-series, exogenous regressors,
+  LLM-prefilled form (advise-only, user confirms), backtesting/accuracy. (b) LATENT:
+  workbench_routes + dashboard_routes STILL each construct their OWN TenantRuntime
+  (4 total), so they inherit the same cross-router connector-staleness this fix closed
+  for forecast — a table uploaded after their connector built is invisible until
+  rebuilt/invalidated. Pre-existing; unify onto one shared runtime when touched. (c) v1
+  fills interior gaps with 0 (flow-measure/sum semantics) — wrong for mean/level agg;
+  gate refuses >50% filled. (d) the DuckDB upload path is the wedge; a SQL/BYO connector
+  without date_trunc gets an honest refusal, not a forecast.
 - GEOGRAPHIC CHARTS (Phase B, shipped): neutral types `choropleth` (region+value,
   region_level country|us_state) and `geo_points` (lat+lon, optional size/color).
   Region names/codes are resolved to topojson feature ids SERVER-SIDE via the FROZEN
