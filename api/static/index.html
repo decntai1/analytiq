@@ -543,7 +543,7 @@ function renderDataList(t){
         `<span style="display:block;color:#6a818a;font-size:11px;overflow-wrap:anywhere">${(x.rows!=null?x.rows+' rows':'')}${cols?' · '+esc(cols):''}</span></span>`+
         `<select class="tblMove" data-t="${esc(x.name)}" title="Move to folder" style="flex:none;font-size:10px;max-width:70px;align-self:flex-start;border:1px solid var(--line,#e6eceb);border-radius:6px;color:#6a818a;background:#fff;cursor:pointer">`+
           ['<option value="">(none)</option>'].concat(FOLDERS.order.map(f=>`<option value="${esc(f)}"${folderOf(x.name)===f?' selected':''}>${esc(f)}</option>`)).concat('<option value=" new">＋ New…</option>').join('')+
-        `</select>`+delBtn('tblDel',x.name)+`</div>`;};
+        `</select>`+`<button class="tblFore" data-t="${esc(x.name)}" title="Forecast a column over time" style="flex:none;background:none;border:none;color:var(--teal,#0c8c7e);cursor:pointer;font-size:13px;line-height:1;padding:2px 3px">📈</button>`+delBtn('tblDel',x.name)+`</div>`;};
     const fhead=(f,members)=>{const inS=members.filter(x=>!unscoped.has(x.name)).length;
       const state=members.length&&inS===members.length?'all':(inS===0?'none':'some');const col=!!FOLDERS.collapsed[f];
       return `<div style="display:flex;gap:6px;align-items:center;padding:5px 6px;margin-top:8px;background:#f4f8f7;border:1px solid var(--line,#e6eceb);border-radius:8px">`+
@@ -630,7 +630,8 @@ document.addEventListener('input',e=>{if(e.target.id!=='dataSearch')return;
   dataFilter=e.target.value.trim().toLowerCase();if(LAST_TABLES)renderDataList(LAST_TABLES);});
 // delete (table/doc) + click-to-preview — delegated so it works after every re-render
 document.addEventListener('click',async e=>{
-  const tdel=e.target.closest('.tblDel'),ddel=e.target.closest('.docDel'),prev=e.target.closest('.tblPrev');
+  const tdel=e.target.closest('.tblDel'),ddel=e.target.closest('.docDel'),prev=e.target.closest('.tblPrev'),fore=e.target.closest('.tblFore');
+  if(fore){openForecast(fore.dataset.t);return;}
   if(tdel){const n=tdel.dataset.t;if(!confirm(`Delete table "${n}" and its file? This can't be undone.`))return;
     try{const r=await fetch('/tables/'+encodeURIComponent(n),{method:'DELETE',headers:authHeaders()});if(r.ok)loadTables();else alert('Delete failed.');}catch(_){alert('Delete failed.');}return;}
   if(ddel){const n=ddel.dataset.t;if(!confirm(`Delete document "${n}" and its file? This can't be undone.`))return;
@@ -645,6 +646,48 @@ async function openPreview(name){
   $('previewTitle').textContent=name+(d.total_rows!=null?` · ${d.total_rows} rows (showing ${rows.length})`:'');
   $('previewBody').innerHTML=`<div style="overflow:auto;max-height:62vh"><table style="border-collapse:collapse;font-size:12px">${th?'<thead><tr>'+th+'</tr></thead>':''}<tbody>${tb}</tbody></table></div>`;
   $('previewModal').style.display='flex';
+}
+// ---- Forecast: deterministic, form-driven, NO LLM (GET columns, POST /forecast)
+async function openForecast(name){
+  $('previewTitle').textContent='Forecast · '+name;
+  $('previewBody').innerHTML='<div style="padding:10px;color:#6a818a;font-size:12px">Loading columns…</div>';
+  $('previewModal').style.display='flex';
+  let m;try{const r=await fetch('/forecast/columns?table='+encodeURIComponent(name),{headers:authHeaders()});if(!r.ok)throw 0;m=await r.json();}catch(_){$('previewBody').innerHTML='<div style="padding:12px;color:#b04a4a;font-size:12px">Couldn\'t read this table\'s columns.</div>';return;}
+  if(!m.time_candidates.length||!m.value_candidates.length){
+    $('previewBody').innerHTML='<div style="padding:12px;color:#6a818a;font-size:12.5px;max-width:420px">Forecasting needs a <b>date/time column</b> and a <b>numeric column</b>. '+(!m.time_candidates.length?'No date-like column was found. ':'')+(!m.value_candidates.length?'No numeric column was found.':'')+'</div>';return;}
+  const opt=(a,sel)=>a.map(v=>`<option value="${esc(v)}"${v===sel?' selected':''}>${esc(v)}</option>`).join('');
+  const lab='display:block;font-size:10.5px;letter-spacing:.04em;color:#6a818a;font-weight:700;margin:8px 0 3px';
+  const inp='width:100%;padding:6px 8px;font-size:12px;border:1px solid var(--line,#e6eceb);border-radius:7px;background:#fff;color:#3a525c';
+  $('previewBody').innerHTML=
+    `<div style="width:660px;max-width:86vw">`+
+      `<div style="display:flex;gap:10px;flex-wrap:wrap">`+
+        `<div style="flex:1;min-width:150px"><label style="${lab}">TIME COLUMN</label><select id="fcTime" style="${inp}">${opt(m.time_candidates)}</select></div>`+
+        `<div style="flex:1;min-width:150px"><label style="${lab}">VALUE COLUMN</label><select id="fcVal" style="${inp}">${opt(m.value_candidates)}</select></div>`+
+      `</div>`+
+      `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:2px">`+
+        `<div style="flex:1;min-width:88px"><label style="${lab}">HORIZON</label><input id="fcHorizon" type="number" min="1" max="${m.max_horizon}" value="${m.default_horizon}" style="${inp}"></div>`+
+        `<div style="flex:1;min-width:104px"><label style="${lab}">PERIOD</label><select id="fcPeriod" style="${inp}">${opt(m.periods,'auto')}</select></div>`+
+        `<div style="flex:1;min-width:128px"><label style="${lab}">METHOD</label><select id="fcMethod" style="${inp}">${opt(m.methods,'auto')}</select></div>`+
+      `</div>`+
+      `<button id="fcRun" class="btn full" style="margin-top:12px">Run forecast</button>`+
+      `<div id="fcOut" style="margin-top:12px"></div>`+
+    `</div>`;
+  $('fcRun').onclick=()=>runForecast(name);
+}
+async function runForecast(name){
+  const out=$('fcOut'),btn=$('fcRun');
+  const body={table:name,time_col:$('fcTime').value,value_col:$('fcVal').value,
+    horizon:parseInt($('fcHorizon').value,10)||6,period:$('fcPeriod').value,method:$('fcMethod').value};
+  btn.disabled=true;out.innerHTML='<div style="color:#6a818a;font-size:12px">Forecasting…</div>';
+  let r,j;try{r=await fetch('/forecast',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify(body)});j=await r.json();}catch(_){btn.disabled=false;out.innerHTML='<div style="color:#b04a4a;font-size:12px">Forecast failed. Try again.</div>';return;}
+  btn.disabled=false;
+  if(!r.ok){out.innerHTML=`<div style="padding:9px 11px;background:#fbf0df;border:1px solid #f0dcae;border-radius:8px;color:#8a5a12;font-size:12.5px">${esc(j.detail||'Forecast unavailable.')}</div>`;return;}
+  const hid='fcChart_'+Math.abs(Date.now()%100000);
+  out.innerHTML=`<div id="${hid}" style="width:100%;min-height:300px"></div>`+
+    `<div style="margin-top:7px;font-size:11.5px;color:#6a818a">${esc(j.method_note)} · ${esc(j.diagnostics.interval)}${j.n_filled?` · ${j.n_filled} gap period(s) filled with 0`:''}</div>`;
+  if(j.chart&&typeof vegaEmbed!=='undefined'){
+    vegaEmbed('#'+hid,j.chart,{actions:false,renderer:'svg',config:VCONFIG}).catch(()=>{$(hid).innerHTML='<div class="viz-fail">This chart could not be rendered.</div>';});
+  } else {$(hid).innerHTML='<div class="viz-fail">Chart engine not loaded.</div>';}
 }
 apikey&&apikey.addEventListener('change',loadTables);
 
