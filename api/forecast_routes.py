@@ -25,12 +25,20 @@ from pydantic import BaseModel
 from api import auth
 from core.forecast import ForecastError, forecast
 from core.tenancy import Tenant
-from core.tenant_runtime import TenantRuntime
 from viz.render_vegalite import to_vegalite
 
 router = APIRouter()
-_runtime = TenantRuntime()
 _ratelimit = auth.RateLimiter(config.settings.rate_limit_per_min)
+
+
+def _get_ctx(tenant: Tenant | None):
+    """Use app.py's SHARED TenantRuntime, so forecasting sees exactly the connector
+    /upload registers into (one cached connector per tenant). A private runtime here
+    would go stale the moment a table is uploaded through a different router. Lazy
+    import avoids the app<->router import cycle (app is fully loaded by request time)."""
+    from api.app import _runtime
+    return _runtime.get(tenant)
+
 
 _DATE_FORMATS = ("%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%d/%m/%Y",
                  "%Y-%m-%d %H:%M:%S", "%Y-%m", "%Y")
@@ -101,7 +109,7 @@ class ForecastBody(BaseModel):
 def forecast_columns(request: Request, table: str = Query(...),
                      tenant: Tenant | None = Depends(auth.resolve_tenant)):
     _gate(request, tenant)
-    ctx = _runtime.get(tenant)
+    ctx = _get_ctx(tenant)
     if table not in ctx.connector.schema_by_table():
         raise HTTPException(404, f"No such table {table!r}.")
     try:
@@ -123,7 +131,7 @@ def forecast_columns(request: Request, table: str = Query(...),
 def do_forecast(body: ForecastBody, request: Request,
                 tenant: Tenant | None = Depends(auth.resolve_tenant)):
     _gate(request, tenant)
-    ctx = _runtime.get(tenant)
+    ctx = _get_ctx(tenant)
     try:
         result = forecast(
             ctx.connector, body.table, body.time_col, body.value_col,
