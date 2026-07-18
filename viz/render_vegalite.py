@@ -20,6 +20,7 @@ _MARK = {"bar": "bar", "line": "line", "area": "area", "scatter": "point", "pie"
 _LABEL_COLOR = "#3a525c"
 _TREND_COLOR = "#d4453f"
 _POINT_COLOR = "#2b6b7a"
+_FORECAST_COLOR = "#c76b3f"      # warm tone: the projected segment reads as distinct from history
 _LAND_FILL = "#eef3f4"
 _LAND_STROKE = "#d6e0e2"
 _GEO_HEIGHT = 360               # maps need an explicit height (geoshape has no implicit extent)
@@ -85,6 +86,33 @@ def to_vegalite(spec: dict, rows: list[dict]) -> dict:
         # for the eval scorer + trace. Vega-Lite ignores unknown top-level keys.
         "_neutral": ctype,
     }
+
+    # --- forecast (server-only): history line + dashed forecast + interval band --
+    # Emitted by core/forecast.py, never by the LLM. x is always an ISO date bucket
+    # (temporal). Rows carry kind=history|forecast; the band + dashed line filter to
+    # the forecast segment, the solid line to history. The band IS the honesty.
+    if ctype == "forecast":
+        x_enc = {"field": enc["x"], "type": "temporal"}
+        y_title = title or enc.get("y")
+        hist = {"filter": "datum.kind === 'history'"}
+        fut = {"filter": "datum.kind === 'forecast'"}
+        base["layer"] = [
+            {"transform": [fut],
+             "mark": {"type": "area", "opacity": 0.18, "color": _FORECAST_COLOR},
+             "encoding": {"x": x_enc,
+                          "y": {"field": enc["lower"], "type": "quantitative", "title": y_title},
+                          "y2": {"field": enc["upper"]}}},
+            {"transform": [hist],
+             "mark": {"type": "line", "color": _POINT_COLOR, "tooltip": True},
+             "encoding": {"x": x_enc,
+                          "y": {"field": enc["y"], "type": "quantitative", "title": y_title}}},
+            {"transform": [fut],
+             "mark": {"type": "line", "color": _FORECAST_COLOR, "strokeDash": [5, 4],
+                      "point": True, "tooltip": True},
+             "encoding": {"x": x_enc,
+                          "y": {"field": enc["y"], "type": "quantitative", "title": y_title}}},
+        ]
+        return base
 
     # --- geographic types (topojson basemap + deterministic id resolution) ---
     # Region names are resolved to topojson feature ids SERVER-SIDE via the frozen

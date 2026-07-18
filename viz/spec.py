@@ -28,6 +28,10 @@ CAPABILITY = {
         # geographic (Phase B) — region names resolved to topojson ids deterministically
         # (index/region_lookup.py); the LLM names a COLUMN, never a region code.
         "choropleth", "geo_points",
+        # forecasting — SERVER-ONLY (see _SERVER_ONLY below): emitted by
+        # core/forecast.py, never offered to the LLM. History line + dashed
+        # forecast line + prediction-interval band.
+        "forecast",
     ],
     "rules": {
         "line_requires": ["x", "y"],
@@ -47,8 +51,19 @@ CAPABILITY = {
         # geographic types
         "choropleth_requires": ["region", "value"],  # region column + numeric value; region_level modifier
         "geo_points_requires": ["lat", "lon"],       # lat/lon columns; optional size, color
+        # forecasting (server-only): x=time bucket, y=value (history actual /
+        # forecast mean), lower/upper=interval bounds, kind=history|forecast
+        "forecast_requires": ["x", "y", "lower", "upper", "kind"],
     },
 }
+
+# SERVER-ONLY chart types: valid to validate + render, but NEVER exposed to the
+# LLM's make_chart tool. The forecast type is produced deterministically by
+# core/forecast.py (a fixed statistical function), not by the model — so the /ask
+# path has no forecasting vocabulary and no forecast tool. LLM_CHART_TYPES is what
+# core/tools.py advertises; CAPABILITY["chart_types"] is the full render/validate set.
+_SERVER_ONLY = {"forecast"}
+LLM_CHART_TYPES = [t for t in CAPABILITY["chart_types"] if t not in _SERVER_ONLY]
 
 # scatter may carry an optional deterministic trend overlay (Vega-Lite transform)
 _TREND_METHODS = ("linear", "loess")

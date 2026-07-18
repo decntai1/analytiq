@@ -9,7 +9,7 @@ Add a capability (e.g. build_presentation, forecast) = one entry + one handler.
 """
 from __future__ import annotations
 
-from viz.spec import CAPABILITY
+from viz.spec import CAPABILITY, LLM_CHART_TYPES
 
 TOOLS = [
     {
@@ -32,7 +32,7 @@ TOOLS = [
             "description": (
                 "Visualize the most recent query results. Provide a NEUTRAL chart spec "
                 "(never raw Vega-Lite). The latest query rows are bound automatically. "
-                f"Allowed types: {CAPABILITY['chart_types']}. Encoding uses COLUMN NAMES:\n"
+                f"Allowed types: {LLM_CHART_TYPES}. Encoding uses COLUMN NAMES:\n"
                 "- line/bar/area/scatter: x, y (optional series). pie: category, value.\n"
                 "- histogram/density: value (one numeric column; binning/KDE are automatic).\n"
                 "- boxplot: y (numeric); optional x = category to compare distributions.\n"
@@ -50,7 +50,7 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "type": {"type": "string", "enum": CAPABILITY["chart_types"]},
+                    "type": {"type": "string", "enum": LLM_CHART_TYPES},
                     "title": {"type": "string"},
                     "encoding": {
                         "type": "object",
