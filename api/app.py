@@ -58,6 +58,8 @@ from api.dashboard_routes import router as dashboard_router  # noqa: E402
 app.include_router(dashboard_router)
 from api.billing_routes import router as billing_router  # noqa: E402
 app.include_router(billing_router)
+from api.forecast_routes import router as forecast_router  # noqa: E402
+app.include_router(forecast_router)
 
 
 # --- models -----------------------------------------------------------------
