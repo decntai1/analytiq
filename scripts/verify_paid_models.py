@@ -35,10 +35,10 @@ DEFAULT_BASE = "https://analytiq.dcentai.tech"
 # every model the picker can offer (registry name -> friendly label). North's
 # total (120+150) = 270 requires real aggregation, so "270" in the answer is a
 # strong correctness signal a row-echo can't fake.
-MODELS = [("ministral-8b", "Ministral 8B (Free default)"),
-          ("gpt-oss-20b", "GPT-OSS 20B"),
-          ("ollama-cloud", "GPT-OSS 120B"),
-          ("qwen3-coder", "Qwen3-Coder 480B")]
+# ministral-3:8b + qwen3-coder:480b RETIRED by Ollama Cloud 2026-07-15 — removed
+# from the picker; re-add here only after they (or a replacement) pass live.
+MODELS = [("gpt-oss-20b", "GPT-OSS 20B (Free default)"),
+          ("ollama-cloud", "GPT-OSS 120B")]
 CSV = ("region,revenue\nNorth,120\nNorth,150\nSouth,90\n"
        "South,110\nEast,70\nWest,140\n").encode()
 EXPECT = "270"   # North total

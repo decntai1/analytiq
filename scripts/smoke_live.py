@@ -140,9 +140,11 @@ def as_json(raw: bytes):
 
 # paid models (in the picker for paid plans) that a Free smoke account can't /ask;
 # probe their tool-calling liveness directly if OLLAMA_API_KEY is available.
+# NOTE: ministral-3:8b + qwen3-coder:480b were RETIRED by Ollama Cloud 2026-07-15
+# (410, absent from the catalog) — dropped from the picker and from this probe.
+# Re-add a model here only after it passes a live run_sql probe.
 PAID_MODELS = [("gpt-oss-20b", "gpt-oss:20b"),
-               ("gpt-oss-120b", "gpt-oss:120b"),
-               ("qwen3-coder", "qwen3-coder:480b")]
+               ("gpt-oss-120b", "gpt-oss:120b")]
 
 
 def probe_tool_call(key: str, model_id: str, timeout: int = 90):
@@ -370,7 +372,7 @@ def run(base: str) -> int:
     # 5b. plan-gating enforcement + paid-model liveness -----------------------
     print("5b. Model gating (403) + paid-model liveness")
     # Free account POSTing a paid model must be rejected server-side (not just hidden).
-    st, _, raw = c.post_json("/ask", {"question": "ping", "model": "qwen3-coder"})
+    st, _, raw = c.post_json("/ask", {"question": "ping", "model": "ollama-cloud"})
     r.check("Free account 403'd from a paid model (server-side enforcement)",
             st == 403, f"status={st}")
     key = os.environ.get("OLLAMA_API_KEY")
