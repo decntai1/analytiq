@@ -303,7 +303,14 @@
     border-radius:9px;font-size:12px;font-weight:600;padding:6px 11px;cursor:pointer}
   .actbtn:hover{color:var(--teal);border-color:var(--teal);background:var(--teal-soft)}
   .actbtn.sel{color:#fff;background:var(--teal);border-color:var(--teal)}
+  .actbtn.off{opacity:.42;cursor:not-allowed;background:#fff}
+  .actbtn.off:hover{color:var(--muted);border-color:var(--line);background:#fff}
   .actbtn svg{width:13px;height:13px}
+  #pintoast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);z-index:60;
+    background:var(--ink,#0c1a20);color:#fff;font-size:13px;padding:10px 16px;border-radius:11px;
+    box-shadow:0 6px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+  #pintoast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  #pintoast a{color:var(--teal-2,#7fd8c8);font-weight:600;text-decoration:none;margin-left:2px}
   .deckbar{position:fixed;right:22px;bottom:92px;z-index:40;display:none;align-items:center;gap:10px;background:var(--ink,#0c1a20);
     color:#fff;border-radius:14px;padding:11px 16px;box-shadow:0 12px 30px rgba(10,25,30,.25);font-size:13.5px;font-weight:620}
   .deckbar.show{display:flex}
@@ -996,33 +1003,65 @@ function attachActions(ab,data){
   mk(cpSVG+'<span>Copy answer</span>',async b=>{
     const t=(data.answer||'')+((data.sql_log&&data.sql_log.length)?'\n\n-- SQL --\n'+data.sql_log.join('\n'):'');
     try{await navigator.clipboard.writeText(t);flashBtn(b,'Copied');}catch(e){flashBtn(b,'Copy failed');}});
+  // A chart is pinnable only if it has a paired source query AND the tile-refresh
+  // model can rebind it. Maps/forecast pop their data (topojson geometry / server
+  // series), so a refresh can't reconstruct them → disabled with a reason, never a
+  // silent empty tile. chart_sql[i] is the exact query behind charts[i] (server-paired).
+  const NONPIN=new Set(['choropleth','geo_points','forecast']);
+  const chartSql=data.chart_sql||[];
+  const pinnable=(c,i)=>!!(c&&c.spec&&c.spec._kind!=='table'&&!NONPIN.has(c.spec._neutral)
+                           &&chartSql[i]&&String(chartSql[i]).trim());
+  const nCharts=(ab._charts||[]).filter(c=>c&&c.spec&&c.spec._kind!=='table').length;
   (ab._charts||[]).forEach((c,i)=>{
-    if(!c.view)return;
-    mk(imSVG+'<span>Copy chart PNG</span>',async b=>{
-      try{const v=await c.view;if(!v)throw 0;const url=await v.toImageURL('png',2);const blob=await(await fetch(url)).blob();
-        await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);flashBtn(b,'Copied');}
-      catch(e){downloadChart(c,i);flashBtn(b,'Downloaded');}});
-    mk(imSVG+'<span>Download PNG</span>',()=>downloadChart(c,i));
+    if(c.view){
+      mk(imSVG+'<span>Copy chart PNG</span>',async b=>{
+        try{const v=await c.view;if(!v)throw 0;const url=await v.toImageURL('png',2);const blob=await(await fetch(url)).blob();
+          await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);flashBtn(b,'Copied');}
+        catch(e){downloadChart(c,i);flashBtn(b,'Downloaded');}});
+      mk(imSVG+'<span>Download PNG</span>',()=>downloadChart(c,i));
+    }
+    if(c&&c.spec&&c.spec._kind!=='table'){   // charts only (raw tables aren't tiles)
+      const lbl='📌 '+(nCharts>1?('Pin chart '+(i+1)):'Pin to dashboard');
+      if(pinnable(c,i)){mk('<span>'+lbl+'</span>',b=>pinChart(b,ab,c,chartSql[i]));}
+      else{const why=NONPIN.has(c.spec._neutral)?'Maps can’t be pinned yet — view them in chat'
+                                                :'No query behind this chart to re-run';
+           disableBtn(mk('<span>'+lbl+'</span>',()=>{}),why);}
+    }
   });
+  const canDeck=(ab._charts||[]).some(pinnable);
   const selBtn=mk(slSVG+'<span>Add to deck</span>',()=>{
+    const fc=(ab._charts||[]).find(pinnable)||null;   // first pinnable chart, not blind [0]
     const item={title:(ab.dataset.q||'Result').slice(0,80),answer:data.answer||'',
-      chart:(ab._charts&&ab._charts[0]&&!ab._charts[0].spec._kind)?ab._charts[0].spec:null,sql:data.sql_log||[]};
+      chart:fc?fc.spec:null,sql:data.sql_log||[]};
     const ix=SELECTED.findIndex(s=>s._ab===ab);
     if(ix>=0){SELECTED.splice(ix,1);selBtn.classList.remove('sel');selBtn.querySelector('span').textContent='Add to deck';}
     else{item._ab=ab;SELECTED.push(item);selBtn.classList.add('sel');selBtn.querySelector('span').textContent='In deck ✓';}
     syncDeckbar();});
-  mk('<span>📌 Pin to dashboard</span>',async b=>{
-    const sql=(data.sql_log&&data.sql_log.length)?data.sql_log[data.sql_log.length-1]:'';
-    const spec=(ab._charts&&ab._charts[0]&&!ab._charts[0].spec._kind)?ab._charts[0].spec:null;
-    if(!sql){flashBtn(b,'No SQL to pin');return;}
-    try{const r=await fetch('/dashboard/api/tiles',{method:'POST',headers:authHeaders({'content-type':'application/json'}),
-      body:JSON.stringify({title:(ab.dataset.q||'Tile').slice(0,100),question:ab.dataset.q||'',sql,spec})});
-      flashBtn(b,r.ok?'Pinned ✓':'Pin failed');}catch(e){flashBtn(b,'Pin failed');}});
+  if(!canDeck)disableBtn(selBtn,'Nothing to add — this answer has no chart');
   ab.appendChild(row);
 }
 async function downloadChart(c,i){try{const v=await c.view;if(!v)return;const url=await v.toImageURL('png',2);
   const a=document.createElement('a');a.href=url;a.download='analytiq-chart-'+(i+1)+'.png';a.click();}catch(e){}}
 function flashBtn(b,txt){const s=b.querySelector('span'),old=s.textContent;s.textContent=txt;setTimeout(()=>s.textContent=old,1400);}
+function disableBtn(b,why){b.disabled=true;b.classList.add('off');b.title=why;return b;}
+function pinChart(btn,ab,c,sql){
+  if(!sql){flashBtn(btn,'No SQL to pin');return;}
+  // target the board the user last viewed on /dashboard (localStorage); the server
+  // falls back to the default board if it's stale — a bad id never loses the pin.
+  const bid=localStorage.getItem('aq_board')||'',bname=localStorage.getItem('aq_board_name')||'';
+  const body={title:(ab.dataset.q||'Tile').slice(0,100),question:ab.dataset.q||'',sql:sql,spec:c.spec};
+  if(bid)body.board_id=bid;
+  fetch('/dashboard/api/tiles',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify(body)})
+    .then(r=>{if(!r.ok){flashBtn(btn,r.status===402?'Upgrade to pin':'Pin failed');return;}
+      flashBtn(btn,bname?('Pinned to '+bname+' ✓'):'Pinned ✓');pinToast(bname);})
+    .catch(()=>flashBtn(btn,'Pin failed'));
+}
+function pinToast(bname){
+  let t=document.getElementById('pintoast');
+  if(!t){t=document.createElement('div');t.id='pintoast';document.body.appendChild(t);}
+  t.innerHTML='📌 Pinned'+(bname?(' to <b>'+esc(bname)+'</b>'):'')+' · <a href="/dashboard">Open dashboard →</a>';
+  t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),5000);
+}
 
 async function buildSelectedDeck(){
   if(!SELECTED.length)return;const go=$('deckGo');go.disabled=true;go.textContent='Building…';

@@ -78,9 +78,14 @@ class BoardStore:
         d = self._load(scope)
         if len(d["tiles"]) >= MAX_TILES:
             raise ValueError(f"tile limit ({MAX_TILES}) reached")
-        bid = board_id or self.default_board(scope)["id"]
-        if not any(b["id"] == bid for b in self._load(scope)["boards"]):
-            raise KeyError(bid)
+        # Resolve the target board: honor an explicit board_id when it exists in this
+        # scope, else fall back to the default board. The chat page pins to the user's
+        # last-viewed board (from localStorage), which may be stale/deleted/foreign — a
+        # bad id must NOT lose the pin. default_board creates "My dashboard" if none.
+        if board_id and any(b["id"] == board_id for b in d["boards"]):
+            bid = board_id
+        else:
+            bid = self.default_board(scope)["id"]
         if spec:  # store the spec LEAN: data is re-bound on every refresh
             spec = copy.deepcopy(spec)
             spec["data"] = {"values": []}

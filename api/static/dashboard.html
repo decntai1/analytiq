@@ -44,12 +44,17 @@ and refreshing re-runs the saved SQL against live data. No re-prompting, ever.</
 <script>
 const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function hdr(h){h=h||{};const k=localStorage.getItem('aq_apikey');if(k)h['X-API-Key']=k;return h;}
-let BOARD=null,TIMER=null;
+let BOARD=null,BOARDS=[],TIMER=null;
+// Publish the viewed board so the chat page pins here (server falls back to the
+// default board if this is ever stale). Cross-page handoff via localStorage.
+function saveActive(){const b=BOARDS.find(x=>x.id===BOARD);
+  if(BOARD){localStorage.setItem('aq_board',BOARD);localStorage.setItem('aq_board_name',b?b.name:'');}
+  else{localStorage.removeItem('aq_board');localStorage.removeItem('aq_board_name');}}
 async function loadBoards(){const j=await(await fetch('/dashboard/api/boards',{headers:hdr()})).json();
-  const bs=j.boards||[];BOARD=BOARD&&bs.some(b=>b.id===BOARD)?BOARD:(bs[0]&&bs[0].id);
+  const bs=j.boards||[];BOARDS=bs;BOARD=BOARD&&bs.some(b=>b.id===BOARD)?BOARD:(bs[0]&&bs[0].id);saveActive();
   $('boardSel').innerHTML=bs.map(b=>`<option value="${esc(b.id)}"${b.id===BOARD?' selected':''}>${esc(b.name)} (${b.tiles})</option>`).join('');
   $('exp').href=BOARD?`/dashboard/api/boards/${BOARD}/export.pptx`:'#';loadTiles();}
-$('boardSel').addEventListener('change',()=>{BOARD=$('boardSel').value;$('exp').href=`/dashboard/api/boards/${BOARD}/export.pptx`;loadTiles();});
+$('boardSel').addEventListener('change',()=>{BOARD=$('boardSel').value;saveActive();$('exp').href=`/dashboard/api/boards/${BOARD}/export.pptx`;loadTiles();});
 $('newBoard').addEventListener('click',async()=>{const n=prompt('Board name:','Ops monitor');if(!n)return;
   const b=await(await fetch('/dashboard/api/boards',{method:'POST',headers:hdr({'content-type':'application/json'}),body:JSON.stringify({name:n})})).json();
   BOARD=b.id;loadBoards();});
