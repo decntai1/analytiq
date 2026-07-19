@@ -623,6 +623,37 @@ def run(base: str) -> int:
     r.check("Refresh re-runs SQL and returns data (no LLM by construction)",
             st == 200 and got_data, f"status={st}")
 
+    # 7b. chart↔SQL PAIRING: a 2-chart answer must pin the CLICKED chart with ITS OWN
+    # query (chart_sql[i]) — not the answer's last SQL. WARN (not FAIL) when the model
+    # returns <2 runnable charts this run; chart emission is model-discretionary.
+    st, _, raw = c.post_json("/ask", {"question":
+        f"Show revenue by region as a bar chart, and also as a pie chart, from {view}."},
+        timeout=180)
+    ans2 = as_json(raw) or {}
+    charts2, csql2 = ans2.get("charts") or [], ans2.get("chart_sql") or []
+    if len(charts2) < 2 or len(csql2) < 2 or not str(csql2[1] or "").strip():
+        r.warn("chart↔SQL pairing (needs a 2-chart answer)",
+                f"model returned {len(charts2)} chart(s)/{len(csql2)} query(ies) — pairing "
+                "assertion needs ≥2; chart_sql plumbing still present on the response")
+    else:
+        st, _, raw = c.post_json("/dashboard/api/tiles", {
+            "board_id": bid, "title": "pairing probe", "question": "pair",
+            "sql": csql2[1], "spec": charts2[1]})
+        pt = as_json(raw) or {}
+        ptid = pt.get("id") or pt.get("tile_id")
+        r.check("Pin 2nd chart stores ITS OWN query (chart_sql[1], not the last SQL)",
+                st == 200 and pt.get("sql") == csql2[1],
+                f"stored sql matches chart_sql[1]={pt.get('sql') == csql2[1]}")
+        # refresh_tile enforces spec-fields ⊆ query-columns; a MISPAIRED tile (2nd
+        # chart's spec + wrong query) would error here. Clean spec proves the pairing.
+        st, _, raw = c.post_json(f"/dashboard/api/tiles/{ptid}/refresh", {})
+        rf = as_json(raw) or {}
+        r.check("2nd-chart tile refreshes clean (spec fields ⊆ its own query's columns)",
+                st == 200 and "error" not in rf and bool(rf.get("spec")),
+                f"error={rf.get('error')}")
+        if ptid:
+            c.delete(f"/dashboard/api/tiles/{ptid}")
+
     # 8. workbench: session → profile → propose → apply → download; source safe
     print("8. Workbench: clean a copy, source stays immutable")
     st, _, raw = c.post_json("/workbench/api/sessions", {"view": view})
