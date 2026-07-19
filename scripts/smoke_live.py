@@ -602,7 +602,12 @@ def run(base: str) -> int:
     bid = board.get("id") or board.get("board_id")
     created["board_id"] = bid
     r.check("Create a dashboard board", st == 200 and bool(bid), f"board_id={bid}")
-    pin_sql = f"SELECT region, sum(revenue) AS revenue FROM {view} GROUP BY region"
+    # Pin chart[0] with ITS OWN paired query (chart_sql[0]) so spec-fields ⊆ columns
+    # holds — refresh_tile now refuses a mismatched spec+SQL (honest, no blank tile),
+    # so a hardcoded pin SQL that doesn't match the model's chart would (correctly) fail.
+    csql0 = ans.get("chart_sql") or []
+    pin_sql = (csql0[0] if csql0 and str(csql0[0]).strip()
+               else f"SELECT region, sum(revenue) AS revenue FROM {view} GROUP BY region")
     st, _, raw = c.post_json("/dashboard/api/tiles", {
         "board_id": bid, "title": "Revenue by region",
         "question": "Total revenue by region", "sql": pin_sql,
@@ -629,6 +634,7 @@ def run(base: str) -> int:
     st, _, raw = c.post_json("/ask", {"question":
         f"Show revenue by region as a bar chart, and also as a pie chart, from {view}."},
         timeout=180)
+    asked += 1  # this /ask spends a credit — keep the §10 metering assertion honest
     ans2 = as_json(raw) or {}
     charts2, csql2 = ans2.get("charts") or [], ans2.get("chart_sql") or []
     if len(charts2) < 2 or len(csql2) < 2 or not str(csql2[1] or "").strip():
