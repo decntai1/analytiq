@@ -92,12 +92,22 @@ DOMAIN must resolve to the box before Caddy can issue the cert.
 
 State = **Docker named volumes**, NOT /opt/analytiq/state/: `analytiq_tenants`
 → /app/tenants, `analytiq_data` → /data (so `ACCOUNTS_DB=/data/accounts.db`).
-Backups of BOTH volumes are mandatory once real users register.
+Backups of BOTH volumes are mandatory once real users register. GOTCHA (bit us
+2026-07-19): dashboards + workbench default to RELATIVE paths (`./dashboards`,
+`./workbench` → `/app/…`, the container's EPHEMERAL layer), so every `up --build`
+recreate silently WIPED all pinned tiles until `DASHBOARD_DIR=/data/dashboards` +
+`WORKBENCH_DIR=/data/workbench` pinned them to the volume (docker-compose.prod.yml).
+Any NEW durable state must go on /data — anything writing a relative path is
+ephemeral. Proof it survives a recreate: `scripts/persistence_gate.py` (pin →
+`up --build` → verify). LESSON: a persistence claim is proven ONLY by a test that
+destroys the process (container recreate); anything single-process tests caching,
+not durability — smoke §7 stayed green straight through the data loss.
 
 `.env.prod.example` is the template. Required keys: DEPLOY_MODE=cloud,
 MULTI_TENANT=1, DOMAIN, ADMIN_TOKEN, DEFAULT_MODEL, OPENAI_API_KEY,
 EMBEDDING_MODE=openai, CORS_ORIGINS, RATE_LIMIT_PER_MIN, MAX_UPLOAD_MB,
-DATA_SOURCE, ACCOUNTS_DB, COOKIE_SECURE=1. Billing: STRIPE_SECRET_KEY /
+DATA_SOURCE, ACCOUNTS_DB, DASHBOARD_DIR=/data/dashboards,
+WORKBENCH_DIR=/data/workbench, COOKIE_SECURE=1. Billing: STRIPE_SECRET_KEY /
 STRIPE_WEBHOOK_SECRET / STRIPE_PUBLISHABLE_KEY, PUBLIC_URL, and THREE price IDs
 — STRIPE_PRICE_ANALYST / STRIPE_PRICE_TEAM / STRIPE_PRICE_BUSINESS (code reads
 all three: api/billing_routes.py PRICES). Webhook endpoint /billing/webhook

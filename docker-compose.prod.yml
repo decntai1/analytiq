@@ -28,6 +28,12 @@ services:
       MULTI_TENANT: "1"
       SCAFFOLD_GLOSSARY_PIN: "1"   # deterministic glossary→table pin ON (eval: recall 0.70→0.90, q5 clears)
       SCAFFOLD_AGG_BEFORE_JOIN: "1"  # deterministic fan-out fix ON (eval: L2b 0-2/10→10/10 all models, 0 regressions)
+      # Durable state MUST live on the analytiq_data volume (/data), NOT the container's
+      # ephemeral layer. Default ./dashboards → /app/dashboards is wiped on every --build
+      # recreate; that silently destroyed all pinned tiles until fixed (2026-07-19). Same
+      # for workbench. Proof this holds: scripts/persistence_gate.py across a real recreate.
+      DASHBOARD_DIR: /data/dashboards
+      WORKBENCH_DIR: /data/workbench
     expose:
       - "8000"                  # internal only; not published to host
     volumes:
