@@ -77,18 +77,13 @@ MODEL_REGISTRY: dict[str, ModelSpec] = {
         "Ollama Cloud — GPT-OSS 20B (fast, tool-capable).",
         label="GPT-OSS 20B — faster",
     ),
-    "ministral-8b": ModelSpec(
-        "ministral-8b", "openai_compatible", "ministral-3:8b",
-        "https://ollama.com/v1", "OLLAMA_API_KEY",
-        "Ollama Cloud — Ministral 8B (fastest/cheapest, tool-capable). Free-tier default.",
-        label="Ministral 8B — fast",
-    ),
-    "qwen3-coder": ModelSpec(
-        "qwen3-coder", "openai_compatible", "qwen3-coder:480b",
-        "https://ollama.com/v1", "OLLAMA_API_KEY",
-        "Ollama Cloud — Qwen3-Coder 480B (strong SQL, tool-capable).",
-        label="Qwen3-Coder 480B — strong SQL",
-    ),
+    # RETIRED by Ollama Cloud on 2026-07-15 (verified absent from the live
+    # catalog on 2026-07-19: `ministral-3:8b` and `qwen3-coder:480b` both return
+    # HTTP 410). Removed from the picker so /ask never routes to a dead id (an
+    # uncaught 410 → 500). Free's default moved to gpt-oss-20b (cheapest model
+    # currently tool-VERIFIED live). Re-add only after a live run_sql probe passes
+    # — this is exactly the "catalog listing ≠ usable" rule biting. When a cheaper
+    # tool-capable model is verified, promote it here and demote Free onto it.
 
     # --- CODE-SPECIALIST thesis probes (NOT in PLAN_MODELS -> not offered in the
     #     picker; reachable only by name from the eval harness). Added to answer
@@ -313,13 +308,15 @@ def plan_of(name: str) -> dict:
 # ---------------------------------------------------------------------------
 # PLAN_MODELS — which registry models each plan may select (first = the plan's
 # default). Model choice is a tier benefit AND a cost control: Free lands on the
-# cheapest tool-capable model (ministral-8b), not the priciest (gpt-oss:120b).
+# cheapest tool-capable model (gpt-oss-20b), not the priciest (gpt-oss:120b).
+# (Was ministral-8b until Ollama Cloud retired ministral-3:8b on 2026-07-15;
+# gpt-oss-20b is now the cheapest id verified tool-capable live — see registry.)
 # Names MUST be valid MODEL_REGISTRY keys (no orphans). Enforced server-side in
 # /ask, not just hidden in the picker. On-prem/single-tenant ignores this.
 # ---------------------------------------------------------------------------
-_PAID_MODELS = ["ollama-cloud", "gpt-oss-20b", "ministral-8b", "qwen3-coder"]
+_PAID_MODELS = ["ollama-cloud", "gpt-oss-20b"]
 PLAN_MODELS: dict[str, list[str]] = {
-    "free":     ["ministral-8b"],
+    "free":     ["gpt-oss-20b"],
     "analyst":  list(_PAID_MODELS),
     "business": list(_PAID_MODELS),
 }

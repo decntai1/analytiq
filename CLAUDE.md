@@ -147,8 +147,13 @@ sqlite-only check passed 32/0 while `/ask` over an uploaded DATE column 500'd
 ("Object of type date is not JSON serializable"). Section 5c uploads a typed CSV
 (DATE+DECIMAL) and asserts /ask returns 200; keep that class of coverage. The
 model picker is
-plan-gated (PLAN_MODELS): Free = ministral-8b only (cheapest tool-capable — Free
-must NOT default to the pricey 120B); paid tiers get the full curated set. Every
+plan-gated (PLAN_MODELS): Free = gpt-oss-20b only (cheapest tool-capable — Free
+must NOT default to the pricey 120B); paid tiers get the curated set (currently
+ollama-cloud=120B + gpt-oss-20b). NOTE: Free was ministral-8b until Ollama Cloud
+RETIRED ministral-3:8b AND qwen3-coder:480b on 2026-07-15 (410 → uncaught 500 →
+Free /ask down ~4 days until the 2026-07-19 smoke caught it); both removed from
+the registry, Free demoted onto gpt-oss-20b. The "catalog listing ≠ usable" rule
+biting live — repoint to a cheaper id only after a live run_sql probe. Every
 offered model is tool-VERIFIED for run_sql on the Ollama Cloud tier; smoke_live.py
 tool-probes the paid ones (needs OLLAMA_API_KEY in env) and scripts/verify_paid_models.py
 is a ONE-TIME build-time acceptance (uses ADMIN_TOKEN to mint a Business tenant and
@@ -171,11 +176,16 @@ dashboard.html · config.py: MODEL_REGISTRY, scaffold flags, PLANS, PLAN_MODELS
 ## Live deploy state (as of the r5 launch session)
 LIVE at https://analytiq.dcentai.tech (Caddy TLS, MULTI, Ollama Cloud). Shipped +
 verified this session (see [[deploy-target]] memory):
-- Plan-gated model picker (config.PLAN_MODELS): 4 tool-verified Ollama-Cloud
-  models, Free=ministral-8b (cheapest, fixes the cost leak), paid=all 4. /models
-  filters by plan; /ask ENFORCES server-side (Free POSTing a paid model → 403
-  before credits are charged). verify_paid_models.py is ONE-TIME build-time
-  acceptance (uses ADMIN_TOKEN), NOT the recurring gate.
+- Plan-gated model picker (config.PLAN_MODELS): 2 tool-verified Ollama-Cloud
+  models as of 2026-07-19 (was 4), Free=gpt-oss-20b (cheapest still-live tool-
+  capable id), paid=[ollama-cloud=120B, gpt-oss-20b]. ministral-3:8b and
+  qwen3-coder:480b were RETIRED upstream 2026-07-15 and removed. /models filters
+  by plan; /ask ENFORCES server-side (Free POSTing a paid model → 403 before
+  credits are charged). verify_paid_models.py is ONE-TIME build-time acceptance
+  (uses ADMIN_TOKEN), NOT the recurring gate. OPEN follow-up: an upstream 410
+  (retired model) is caught NOWHERE and surfaces as a 500 — harden /ask to turn a
+  provider 410/404 into a graceful "model unavailable" so one retirement can't
+  down the endpoint again.
 - Upload visibility: /tables returns table_details (name/rows/columns) + documents
   (files); document count is FILES not chunks; uploads announce table-vs-document
   and flag doc Q&A limited while EMBEDDING_MODE=test.
@@ -250,7 +260,12 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
   can't fetch the basemap offline — maps render in the BROWSER (vega-embed) but the
   slide raster path is unproven; treat maps as chat-only until that's addressed.
 - Ollama Cloud is on a FREE/personal key — move to Pro before real traffic (quota
-  walls ~5M tok/wk, 120B burns it fast, no SLA).
+  walls ~5M tok/wk, 120B burns it fast, no SLA). NO-SLA ALREADY BIT: on 2026-07-15
+  the free catalog retired ministral-3:8b (Free default) + qwen3-coder:480b with no
+  notice → Free /ask 500'd for ~4 days (caught 2026-07-19 by smoke, fixed by
+  demoting Free to gpt-oss-20b). Model ids on this key are NOT stable — the picker
+  needs periodic live liveness (smoke §5b) and the 410→graceful-refusal hardening
+  above; Pro doesn't fully fix churn but adds SLA + quota headroom.
 - The REAL EVAL RUN (models × scaffold levels over the gold set) — roadmap item 1,
   the thesis result. Recon found the headline metric (table_recall) was DEGENERATE:
   with only the 3 gold tables and SCHEMA_TOP_K=6, top-6-of-3 = all 3 always ->
