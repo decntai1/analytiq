@@ -76,6 +76,24 @@ if HAS_ACCOUNTS:
 else:
     print("SKIP D10 tenant isolation (single-tenant lineage)")
 
+# refresh HONESTY (defect 4b): a chart tile whose query no longer returns its encoded
+# columns, or returns zero rows, must refuse per-tile — never a silently blank chart.
+c.patch(f"/dashboard/api/tiles/{t['id']}", json={"sql": "SELECT region AS zone, SUM(amt) AS amt FROM sales GROUP BY 1"})
+rm = c.post(f"/dashboard/api/tiles/{t['id']}/refresh").json()
+chk("D12 refresh refuses when a chart field is gone (fields not subset of columns)",
+    "error" in rm and "region" in rm["error"] and "spec" not in rm, rm)
+c.patch(f"/dashboard/api/tiles/{t['id']}", json={"sql": "SELECT region, SUM(amt) AS amt FROM sales WHERE region='__none__' GROUP BY 1"})
+rz = c.post(f"/dashboard/api/tiles/{t['id']}/refresh").json()
+chk("D13 refresh refuses a chart with zero rows", "error" in rz and "no rows" in rz["error"] and "spec" not in rz, rz)
+c.patch(f"/dashboard/api/tiles/{t['id']}", json={"sql": 'SELECT region, SUM(amt) AS amt FROM sales GROUP BY 1'})  # restore good SQL
+
+# board targeting (defect 3): a stale/unknown board_id must fall back to the default
+# board, never 404/lose the pin (the chat page sends the last-viewed board id).
+tf = c.post("/dashboard/api/tiles", json={"board_id": "bd_deadbeef00", "title": "fallback",
+    "question": "", "sql": "SELECT COUNT(*) AS n FROM sales", "spec": None})
+chk("D14 stale board_id falls back to default board (no 404, pin kept)",
+    tf.status_code == 200 and tf.json().get("board_id") == b["id"], tf.status_code)
+
 chk("D11 delete tile + board", c.delete(f"/dashboard/api/tiles/{t['id']}").json()["ok"] and
     c.delete(f"/dashboard/api/boards/{b['id']}").json()["ok"] and
     c.get(f"/dashboard/api/boards/{b['id']}/tiles").json()["tiles"] == [])

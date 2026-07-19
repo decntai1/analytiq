@@ -140,15 +140,39 @@ class BoardStore:
         except Exception as e:
             return {"tile": t, "error": f"query failed: {e}"}
         rows = qr.rows
-        out: dict = {"tile": t, "row_count": len(rows), "truncated": bool(qr.truncated),
-                     "refreshed_at": time.time()}
+        base = {"tile": t, "row_count": len(rows), "truncated": bool(qr.truncated),
+                "refreshed_at": time.time()}
         if t.get("spec"):
+            # A chart tile that binds no rows, or whose encoded columns the query no
+            # longer returns, would render a SILENTLY BLANK chart. Refuse honestly with
+            # a per-tile message instead (the dashboard shows it as an errline).
+            if not rows:
+                return {**base, "error": "the saved query returned no rows — the source "
+                        "table may have changed or been emptied"}
+            missing = self._spec_fields(t["spec"]) - set(qr.columns)
+            if missing:
+                return {**base, "error": "the chart needs column(s) the query no longer "
+                        f"returns: {', '.join(sorted(missing))}"}
             spec = copy.deepcopy(t["spec"])
             spec["data"] = {"values": rows}
-            out["spec"] = spec
-        else:
-            out["columns"], out["rows"] = qr.columns, rows[:200]
-        return out
+            return {**base, "spec": spec}
+        base["columns"], base["rows"] = qr.columns, rows[:200]
+        return base
+
+    @staticmethod
+    def _spec_fields(spec: dict) -> set:
+        """Column names a Vega-Lite spec's encodings reference (top-level + one layer
+        deep — value-labelled charts are layered). Used to detect a refresh whose rows
+        no longer carry the chart's fields (→ honest error, not a blank tile)."""
+        fields: set = set()
+        def walk(enc):
+            for ch in (enc or {}).values():
+                if isinstance(ch, dict) and isinstance(ch.get("field"), str):
+                    fields.add(ch["field"])
+        walk(spec.get("encoding"))
+        for layer in (spec.get("layer") or []):
+            walk(layer.get("encoding"))
+        return fields
 
     def board_to_deck(self, scope: str, board_id: str, ctx) -> bytes:
         """Export a board as an editable PPTX: fresh data per tile."""
