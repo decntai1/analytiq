@@ -221,6 +221,22 @@ NOT promise dedicated infra in landing/pricing copy until provisioning is built.
    Stripe pass (register /billing/webhook now the URL is live, add keys).
 
 ## Standing items
+- DASHBOARD PINNING (correctness arc, shipped 2026-07-19) — chat 📌 now saves the
+  RIGHT chart to the RIGHT board, honestly. (1) PAIRING: orchestrator records each
+  chart's source query (`chart_sql[i]`, index-aligned with `charts` by construction);
+  the pin/deck path in index.html pins the CLICKED chart with ITS OWN query, not the
+  answer's last SQL (the old blank-tile root cause). (2) GUARDS: pin/deck disabled
+  (visible reason) on answers with no chart+query; maps (choropleth/geo_points/
+  forecast pop their data → a refresh can't rebind them) disabled with "Maps can't be
+  pinned yet" — never a silent empty tile. (3) BOARD: pin targets the last-viewed board
+  (localStorage `aq_board`, published by dashboard.html); `core.dashboards.add_tile`
+  falls back to the default board on a stale/foreign id (never loses a pin). (4) HONEST
+  REFRESH: `refresh_tile` refuses per-tile (errline, not a blank chart) on zero-rows or
+  spec-fields⊄columns (`_spec_fields`). Gates: dashboard_battery D12–D14 + smoke §7b
+  (live 2-chart answer → pin the 2nd → assert stored sql==chart_sql[1] & refresh clean).
+  PARKED: deck/PPTX still pins the first chart per answer (multi-chart deck is a v2);
+  maps remain chat-only (raster caveat) — pin stays disabled until the deck raster path
+  handles basemaps offline. NEXT: sidebar UI polish (static-only), then 410 hardening.
 - FORECASTING (shipped, form-driven, fully separate from /ask): `core/forecast.py`
   (deterministic module) + `api/forecast_routes.py` (GET /forecast/columns, POST
   /forecast) + a 📈 button on each data-drawer table (index.html) opening a form
