@@ -184,16 +184,18 @@ class Orchestrator:
                 messages.append({"role": m["role"], "content": m["content"]})
         messages.append({"role": "user", "content": question})
         charts: list[dict] = []
+        chart_sql: list[str] = []   # source query per chart, index-aligned with charts
         citations: list[dict] = []
         sql_log: list[str] = []
         errors: list[str] = []
         last_rows: list[dict] | None = None
+        self._last_sql = ""         # query that produced last_rows (what make_chart binds)
 
         for _ in range(config.settings.max_steps):
             resp = provider.chat(messages, tools=TOOLS)
             if not resp.tool_calls:
                 return self._result(resp.content or "", plan, charts, citations,
-                                    sql_log, errors, model_name, last_rows)
+                                    sql_log, errors, model_name, last_rows, chart_sql)
 
             messages.append({
                 "role": "assistant",
@@ -210,7 +212,7 @@ class Orchestrator:
                 except json.JSONDecodeError:
                     args = {}
                 content, last_rows, err = self._dispatch(tc.name, args, last_rows,
-                                                         charts, citations, sql_log)
+                                                         charts, chart_sql, citations, sql_log)
                 if err:
                     errors.append(err)
                     # repair ON: tell the model what went wrong so it can retry.
@@ -220,11 +222,15 @@ class Orchestrator:
                 messages.append({"role": "tool", "tool_call_id": tc.id, "content": content})
 
         return self._result("Step limit reached; partial results.", plan, charts,
-                            citations, sql_log, errors, model_name, last_rows)
+                            citations, sql_log, errors, model_name, last_rows, chart_sql)
 
     def _result(self, answer, plan, charts, citations, sql_log, errors, model_name,
-                result_rows=None):
+                result_rows=None, chart_sql=None):
         return {"answer": answer, "plan": plan, "charts": charts, "citations": citations,
+                # per-chart source query, index-aligned with `charts` — lets the pin/deck
+                # path save each chart with ITS OWN query, so a refreshed tile re-runs the
+                # SQL that actually produced that chart (not the answer's last query).
+                "chart_sql": chart_sql or [],
                 "sql_log": sql_log, "errors": errors,
                 # rows of the LAST run_sql (what make_chart binds / the answer is built on).
                 # Surfaced so the eval can grade the computed NUMBER, not just "did it run".
@@ -255,7 +261,7 @@ class Orchestrator:
         new_q, fired, _ = rewrite(q, rels, cols, dialect=dialect)
         return (new_q, q) if fired else (q, None)
 
-    def _dispatch(self, name, args, last_rows, charts, citations, sql_log):
+    def _dispatch(self, name, args, last_rows, charts, chart_sql, citations, sql_log):
         """Returns (content_for_model, last_rows, error_or_None)."""
         if name == "run_sql":
             q = args.get("query", "")
@@ -275,6 +281,9 @@ class Orchestrator:
             except Exception as e:
                 return "", last_rows, f"SQL error: {e}"
             note = " (truncated)" if qr.truncated else ""
+            # remember the query that produced these rows, so a make_chart that binds
+            # them can be pinned with ITS OWN source query (not the answer's last SQL).
+            self._last_sql = q_exec
             return (json.dumps({"columns": qr.columns, "rows": qr.rows[:50],
                                 "row_count": len(qr.rows)},
                                default=json_default) + note, qr.rows, None)
@@ -299,6 +308,7 @@ class Orchestrator:
             except Exception as e:
                 return "", last_rows, f"Chart error: {e}"
             charts.append(rendered)
+            chart_sql.append(getattr(self, "_last_sql", ""))  # index-aligned with charts
             return "Chart rendered.", last_rows, None
 
         if name == "search_documents":
